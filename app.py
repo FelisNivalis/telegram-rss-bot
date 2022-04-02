@@ -73,10 +73,10 @@ def update_hook():
 @pre
 @verificate()
 def get_chats():
-    return yaml.dump({
-        k: json.loads(v)
+    return yaml.dump([
+        json.loads(v)
         for k, v in r.hgetall("chats").items()
-    }, allow_unicode=True)
+    ], allow_unicode=True)
 
 
 @app.route("/getConfig", methods=["GET"])
@@ -87,7 +87,7 @@ def get_config():
     return yaml.dump(yaml.load(r.get("config"), yaml.Loader), allow_unicode=True)
 
 
-@app.route("/getConfig", methods=["GET"])
+@app.route("/setConfig", methods=["GET"])
 @app.route("/setConfig/<string:token>", methods=["POST"])
 @verificate()
 def set_config():
