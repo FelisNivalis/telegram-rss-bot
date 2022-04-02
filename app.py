@@ -91,7 +91,7 @@ def get_config():
 @app.route("/setConfig/<string:token>", methods=["POST"])
 @verificate()
 def set_config():
-    data = request.get_data(as_text=True)
+    data = request.files["config.yml"].stream.read()
     try:
         yaml.load(data, yaml.Loader)
     except yaml.parser.ParserError as e:
