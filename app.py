@@ -14,6 +14,13 @@ app.logger.handlers = gunicorn_logger.handlers
 app.logger.setLevel(gunicorn_logger.level)
 
 
+def pre(func):
+    @wraps(func)
+    def _func(*args, **kwargs):
+        return "<pre>{}</pre>".format(func(*args, **kwargs))
+    return _func
+
+
 def verificate(*args, **kwargs):
     def _v(func):
         @wraps(func)
@@ -63,6 +70,7 @@ def update_hook():
 
 @app.route("/getChats", methods=["GET"])
 @app.route("/getChats/<string:token>", methods=["GET"])
+@pre
 @verificate()
 def get_chats():
     return yaml.dump({
@@ -73,6 +81,7 @@ def get_chats():
 
 @app.route("/getConfig", methods=["GET"])
 @app.route("/getConfig/<string:token>", methods=["GET"])
+@pre
 @verificate()
 def get_config():
     return yaml.dump(yaml.load(r.get("config"), yaml.Loader), allow_unicode=True)
