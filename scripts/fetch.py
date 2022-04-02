@@ -48,7 +48,7 @@ def fetch_one(config):
 
 
 def send_message(bot_token: str, chat_id: str, item, config):
-    message = config.get("message_format", MESSAGE_FORMAT).format(**item)
+    message = config.get("message_format", MESSAGE_FORMAT).format(**(config | item))
     ret = requests.get(f"https://api.telegram.org/bot{bot_token}/sendMessage?chat_id={chat_id}&text={message}&parse_mode={config.get('parse_mode', '')}")
     if not json.loads(ret.text)["ok"]:
         logger.error(f"Send message to chat `{chat_id}` failed.")
@@ -99,10 +99,10 @@ def send_all(config):
             for subscription in groups[group]
             if subscription not in messages and check_interval(subscriptions[subscription].get("interval", INTERVAL))
         }
-        for _, item, config in sorted(sum(
+        for _, item, subscription in sorted(sum(
             [
                 [
-                    (t, item, groups[group][subscription])
+                    (t, item, subscription)
                     for t, item in messages[subscription]
                     if t >= lasttimestamp.get(subscription, 0)
                 ]
@@ -110,7 +110,7 @@ def send_all(config):
             ],
             []
         )):
-            send_message(bot_token, chat_id, item, config)
+            send_message(bot_token, chat_id, item, subscriptions[subscription] | groups[group][subscription])
 
     r.hmset(f"lasttimestamp:{channel}", {
         s: max(m, key=lambda _m: _m[0])
