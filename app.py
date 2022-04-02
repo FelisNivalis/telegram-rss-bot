@@ -21,7 +21,7 @@ def verificate(*args, **kwargs):
             if token == "":
                 code = uuid.uuid4().hex
                 r.set("verification_code", code, ex=30)
-                app.logger.info("Your verification code: {}, add `/YOUR-CODE` after the url to continue", code)
+                app.logger.info("Your verification code: %s, add `/YOUR-CODE` after the url to continue", code)
                 return "You need a verification code to continue. Please check your app's logs (you can find the logs at `https://dashboard.heroku.com/apps/YOUR-APPS-NAME/logs`) and add `/YOUR-CODE` after the url to get the chats. The verification code will expire in 60 seconds."
             else:
                 if token != r.get("verification_code"):
