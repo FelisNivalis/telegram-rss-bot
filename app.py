@@ -8,6 +8,9 @@ from const import r, WEBHOOK_TOKEN
 from functools import wraps
 
 app = Flask(__name__)
+gunicorn_logger = logging.getLogger('gunicorn.error')
+app.logger.handlers = gunicorn_logger.handlers
+app.logger.setLevel(gunicorn_logger.level)
 
 
 def verificate(*args, **kwargs):
