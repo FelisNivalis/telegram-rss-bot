@@ -59,7 +59,7 @@ def update_hook():
 
 @app.route("/getChats", methods=["GET"])
 @app.route("/getChats/<string:token>", methods=["GET"])
-@verificate
+@verificate()
 def get_chats():
     return yaml.dump({
         k: json.loads(v)
@@ -69,14 +69,14 @@ def get_chats():
 
 @app.route("/getConfig", methods=["GET"])
 @app.route("/getConfig/<string:token>", methods=["GET"])
-@verificate
+@verificate()
 def get_config():
     return yaml.dump(yaml.load(r.get("config"), yaml.Loader), allow_unicode=True)
 
 
 @app.route("/getConfig", methods=["GET"])
 @app.route("/setConfig/<string:token>", methods=["POST"])
-@verificate
+@verificate()
 def set_config():
     data = request.get_data(as_text=True)
     try:
