@@ -57,7 +57,7 @@ def send_message(bot_token: str, chat_id: str, item, config):
 
 
 def send_all(config):
-    bot_token = config.get("BOT_TOKEN")
+    bot_token = config.get("BOT_TOKEN", os.environ.get("BOT_TOKEN"))
     if bot_token is None:
         logger.error("No bot token is given.")
         return
