@@ -1,6 +1,7 @@
 # coding: utf-8
 
 import os
+import html
 import re
 import json
 import requests
@@ -100,12 +101,16 @@ def send_message(bot_token: str, chat_id: str, item, config):
     time.sleep(0.05) # To prevent 429 Too Many Requests
     args = config | item
     parse_mode = config.get("parse_mode", "")
-    if parse_mode == "MarkdownV2":
-        args = {k: escape_markdown(v, version=2) for k, v in args.items() if isinstance(v, str)}
-    elif parse_mode == "Markdown":
-        args = {k: escape_markdown(v) for k, v in args.items() if isinstance(v, str)}
-    else:
-        args = {k: v for k, v in args.items() if isinstance(v, str)}
+    args = {
+        k: (
+            escape_markdown(v, version=2) if parse_mode == "MarkdownV2" else
+            escape_markdown(v) if parse_mode == "Markdown" else
+            html.escape(v) if parse_mode == "HTML" else
+            v
+        )
+        for k, v in args.items()
+        if isinstance(v, str)
+    }
     message = config.get("message_format", MESSAGE_FORMAT).format(**args)
     ret = requests.get(f"https://api.telegram.org/bot{bot_token}/sendMessage?chat_id={chat_id}&text={message}&parse_mode={config.get('parse_mode', '')}")
     if not json.loads(ret.text)["ok"]:
