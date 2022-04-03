@@ -14,13 +14,23 @@ from loguru import logger
 from const import INTERVAL, ITEM_XPATH, FIELDS_XPATH, MESSAGE_FORMAT, GROUP_CONFIG_FIELDS, r
 
 
-EXECUTE_SECONDS = (datetime.datetime.now() - datetime.datetime.combine(datetime.date.today(), datetime.time())).seconds
+EXECUTE_TIMESTAMP = datetime.datetime.now().timestamp()
 
 
-def check_interval(interval):
-    # allows for at most 60 seconds error
-    idx = EXECUTE_SECONDS / interval
-    return math.fabs(idx - round(idx)) * interval < 60
+def check_interval(subscription, interval):
+    last_fetch_time = r.hget("last_fetch_time", subscription)
+    if not last_fetch_time:
+        last_fetch_time = 0
+    return EXECUTE_TIMESTAMP - last_fetch_time > interval
+
+
+def update_last_fetch_time(subscriptions):
+    if len(subscriptions) == 0:
+        return True
+    return r.hset('last_fetch_time', mapping={
+        subscription: EXECUTE_TIMESTAMP
+        for subscription in subscriptions
+    }) == len(subscriptions)
 
 
 def fetch_one(config):
@@ -97,7 +107,7 @@ def send_all(config):
         messages |= {
             subscription: list(fetch_one(subscriptions[subscription]))
             for subscription in groups[group]
-            if subscription not in messages and check_interval(subscriptions[subscription].get("interval", INTERVAL))
+            if subscription not in messages and check_interval(subscription, subscriptions[subscription].get("interval", INTERVAL))
         }
         for _, item, subscription in sorted(sum(
             [
@@ -112,6 +122,7 @@ def send_all(config):
         )):
             send_message(bot_token, chat_id, item, subscriptions[subscription] | groups[group][subscription])
 
+    update_last_fetch_time(list(messages.keys()))
     r.hmset(f"lasttimestamp:{channel}", {
         s: max(m, key=lambda _m: _m[0])
         for s, m in messages.items()
