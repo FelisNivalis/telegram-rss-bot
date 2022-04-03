@@ -20,28 +20,12 @@ from const import INTERVAL, ITEM_XPATH, FIELDS_XPATH, MESSAGE_FORMAT, GROUP_CONF
 EXECUTE_TIMESTAMP = datetime.datetime.now().timestamp()
 
 
-def escape_markdown(text: str, version: int = 1, entity_type: str = None) -> str:
-    """
-    https://github.com/python-telegram-bot/python-telegram-bot/blob/92cb6f3ae8d5c3e49b9019a9348d4408135ffc95/telegram/utils/helpers.py#L149
-    Helper function to escape telegram markup symbols.
-    Args:
-        text (:obj:`str`): The text.
-        version (:obj:`int` | :obj:`str`): Use to specify the version of telegrams Markdown.
-            Either ``1`` or ``2``. Defaults to ``1``.
-        entity_type (:obj:`str`, optional): For the entity types ``PRE``, ``CODE`` and the link
-            part of ``TEXT_LINKS``, only certain characters need to be escaped in ``MarkdownV2``.
-            See the official API documentation for details. Only valid in combination with
-            ``version=2``, will be ignored else.
-    """
+def escape_markdown(text: str, version: int = 1) -> str:
+    # From https://github.com/python-telegram-bot/python-telegram-bot/blob/92cb6f3ae8d5c3e49b9019a9348d4408135ffc95/telegram/utils/helpers.py#L149
     if int(version) == 1:
         escape_chars = r'_*`['
     elif int(version) == 2:
-        if entity_type in ['pre', 'code']:
-            escape_chars = r'\`'
-        elif entity_type == 'text_link':
-            escape_chars = r'\)'
-        else:
-            escape_chars = r'_*[]()~`>#+-=|{}.!'
+        escape_chars = r'_*[]()~`>#+-=|{}.!'
     else:
         raise ValueError('Markdown version must be either 1 or 2!')
 
@@ -98,7 +82,7 @@ def fetch_one(config):
 
 
 def send_message(bot_token: str, chat_id: str, item, config):
-    time.sleep(0.05) # To prevent 429 Too Many Requests
+    time.sleep(0.2) # To prevent 429 Too Many Requests
     args = config | item
     parse_mode = config.get("parse_mode", "")
     args = {
@@ -115,10 +99,6 @@ def send_message(bot_token: str, chat_id: str, item, config):
     ret = requests.get(f"https://api.telegram.org/bot{bot_token}/sendMessage?chat_id={chat_id}&text={message}&parse_mode={config.get('parse_mode', '')}")
     if not json.loads(ret.text)["ok"]:
         logger.error(f"Send message to chat `{chat_id}` failed.")
-        logger.debug(f"{message=}")
-        logger.debug(f"ret={ret.text}")
-    else:
-        logger.debug(f"Sending message to chat `{chat_id}` succeeded.")
         logger.debug(f"{message=}")
         logger.debug(f"ret={ret.text}")
 
@@ -182,9 +162,9 @@ def send_all(config):
     update_last_fetch_time(list(messages.keys()))
     if messages:
         r.hset(f"lasttimestamp", mapping={
-            s: max(m, key=lambda _m: _m[0])
+            s: res
             for s, m in messages.items()
-            if m
+            if m and (res := max([_m[0] for _m in m])) > 0
         })
 
 
