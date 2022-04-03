@@ -10,6 +10,7 @@ import datetime
 import yaml
 import math
 import time
+import urllib
 from lxml import etree
 from typing import Dict
 from collections import defaultdict
@@ -93,9 +94,10 @@ def send_message(bot_token: str, chat_id: str, item, config):
         if isinstance(v, str)
     }
     message = config.get("message_format", MESSAGE_FORMAT).format(**args)
-    ret = requests.get(f"https://api.telegram.org/bot{bot_token}/sendMessage?chat_id={chat_id}&text={message}&parse_mode={config.get('parse_mode', '')}")
+    ret = requests.get(f"https://api.telegram.org/bot{bot_token}/sendMessage?chat_id={chat_id}&text={urllib.parse.quote(message)}&parse_mode={parse_mode}")
     if not json.loads(ret.text)["ok"]:
         logger.error(f"Send message to chat `{chat_id}` failed.")
+        logger.debug(f"url={ret.url}")
         logger.debug(f"{message=}")
         logger.debug(f"ret={ret.text}")
 
