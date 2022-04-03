@@ -87,12 +87,10 @@ def send_message(bot_token: str, chat_id: str, item, config):
     args = config | item
     parse_mode = config.get("parse_mode", "")
     args = {
-        k: (
-            escape_markdown(v, version=2) if parse_mode == "MarkdownV2" else
-            escape_markdown(v) if parse_mode == "Markdown" else
-            html.escape(v) if parse_mode == "HTML" else
-            v
-        )
+        k: escape_markdown(v, version=2) if parse_mode == "MarkdownV2" else
+           escape_markdown(v) if parse_mode == "Markdown" else
+           html.escape(v) if parse_mode == "HTML" else
+           v
         for k, v in args.items()
         if isinstance(v, str)
     }
