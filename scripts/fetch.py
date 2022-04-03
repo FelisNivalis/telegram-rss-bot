@@ -60,7 +60,7 @@ def fetch_one(config):
             .xpath(config.get("item_xpath", ITEM_XPATH))
         )
     except etree.XMLSyntaxError:
-        logger.error("Failed to parse XML: {config=}")
+        logger.error(f"Failed to parse XML: {config=}")
         return
     item: etree._Element
     for item in items:
@@ -162,6 +162,7 @@ def send_all(config):
             messages_to_send[channel].append((bot_token, channel, item, subscriptions[subscription] | groups[group][subscription]))
 
     idx = 0
+    logger.debug(f"Number of messages to send: { {channel: len(m) for channel, m in messages_to_send.items()} }")
     while True:
         flag = False
         time_start = datetime.datetime.now()
@@ -173,6 +174,7 @@ def send_all(config):
             break
         # https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this
         time.sleep(max(0, 3 - (datetime.datetime.now() - time_start).total_seconds()))
+        idx += 1
 
     update_last_fetch_time(list(messages.keys()))
     if messages:
