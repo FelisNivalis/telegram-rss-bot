@@ -88,7 +88,7 @@ def send_all(config):
     groups = defaultdict(dict, {s: {s: {}} for s in subscriptions})
     for name, group in config.get("rssgroups", {}).items():
         group_config = group.get("config", {})
-        if not set(group.config.keys()).issubset(GROUP_CONFIG_FIELDS):
+        if not set(group_config.keys()).issubset(GROUP_CONFIG_FIELDS):
             logger.error("Group has invalid config fields: {}".format(", ".join(set(group.config.keys() - GROUP_CONFIG_FIELDS))))
             logger.debug(f"{name}: {group}")
             continue
