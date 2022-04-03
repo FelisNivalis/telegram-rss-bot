@@ -18,6 +18,7 @@ from const import INTERVAL, ITEM_XPATH, FIELDS_XPATH, MESSAGE_FORMAT, GROUP_CONF
 
 
 EXECUTE_TIMESTAMP = datetime.datetime.now().timestamp()
+SEND_MESSAGE_INTERVAL = 3
 
 
 def escape_markdown(text: str, version: int = 1) -> str:
@@ -82,7 +83,7 @@ def fetch_one(config):
 
 
 def send_message(bot_token: str, chat_id: str, item, config):
-    time.sleep(0.2) # To prevent 429 Too Many Requests
+    time.sleep(0.05)
     args = config | item
     parse_mode = config.get("parse_mode", "")
     args = {
@@ -139,6 +140,7 @@ def send_all(config):
 
     messages = {}
     lasttimestamp = r.hgetall(f"lasttimestamp")
+    messages_to_send = defaultdict(list)
     for channel, group in config.get("channels", {}).items():
         messages |= {
             subscription: list(fetch_one(subscriptions[subscription]))
@@ -157,7 +159,20 @@ def send_all(config):
             ],
             []
         ), key=lambda _m: _m[0]):
-            send_message(bot_token, channel, item, subscriptions[subscription] | groups[group][subscription])
+            messages_to_send[channel].append((bot_token, channel, item, subscriptions[subscription] | groups[group][subscription]))
+
+    idx = 0
+    while True:
+        flag = False
+        time_start = datetime.datetime.now()
+        for channel, _messages in messages_to_send.items():
+            if idx < len(_messages):
+                send_message(*_messages[idx])
+                flag = True
+        if not flag:
+            break
+        # https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this
+        time.sleep(max(0, 3 - (datetime.datetime.now() - time_start).total_seconds()))
 
     update_last_fetch_time(list(messages.keys()))
     if messages:
