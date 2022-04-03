@@ -8,6 +8,7 @@ import dateutil.parser
 import datetime
 import yaml
 import math
+import time
 from lxml import etree
 from typing import Dict
 from collections import defaultdict
@@ -96,6 +97,7 @@ def fetch_one(config):
 
 
 def send_message(bot_token: str, chat_id: str, item, config):
+    time.sleep(0.05) # To prevent 429 Too Many Requests
     args = config | item
     parse_mode = config.get("parse_mode", "")
     if parse_mode == "MarkdownV2":
@@ -177,6 +179,7 @@ def send_all(config):
         r.hset(f"lasttimestamp", mapping={
             s: max(m, key=lambda _m: _m[0])
             for s, m in messages.items()
+            if m
         })
 
 
