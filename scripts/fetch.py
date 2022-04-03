@@ -39,7 +39,7 @@ def check_interval(subscription, interval):
         last_fetch_time = 0
     else:
         last_fetch_time = float(last_fetch_time)
-    return EXECUTE_TIMESTAMP - last_fetch_time > interval
+    return EXECUTE_TIMESTAMP - last_fetch_time > interval * 60
 
 
 def update_last_fetch_time(subscriptions):
@@ -54,16 +54,14 @@ def update_last_fetch_time(subscriptions):
 def fetch_one(config):
     url = config["url"]
     try:
-        items = (
-            etree
-            .XML(requests.get(url).content)
-            .xpath(config.get("item_xpath", ITEM_XPATH))
-        )
+        doc = etree.XML(requests.get(url).content)
     except etree.XMLSyntaxError:
         logger.error(f"Failed to parse XML: {config=}")
         return
+    if len(ttl_node := doc.xpath("/rss/channel/ttl")) == 1 and (ttl := int(ttl_node[0].text)) > (interval := config.get("interval", INTERVAL)):
+        logger.warning(f"The recommended interval for this rss source is {ttl} (minutes), while the current interval is {interval} (minutes).")
     item: etree._Element
-    for item in items:
+    for item in doc.xpath(config.get("item_xpath", ITEM_XPATH)):
         parsed_item: Dict[str, etree._Element] = {}
         for key, xpath in (FIELDS_XPATH | config.get("fields_xpath", {})).items():
             _item = item.xpath(xpath)

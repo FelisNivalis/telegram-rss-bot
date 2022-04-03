@@ -3,7 +3,7 @@
 import os
 import redis
 
-INTERVAL = 1800
+INTERVAL = 60
 ITEM_XPATH = "/rss/channel/item"
 FIELDS_XPATH = {
     "link": "./link",

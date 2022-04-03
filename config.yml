@@ -6,7 +6,7 @@ subscriptions:
     name: sub2
   - url: url3
     name: sub3
-    interval: 3600 # Optional. Default: 1800 (seconds)
+    interval: 120 # Optional. Default: 60 (minutes)
     item_xpath: /rss/channel/item # Optional. Define the xpath to an item
     xpath: # Optional. Define the xpath to the fields in an item. Can have custom fields.
       link: ./link
