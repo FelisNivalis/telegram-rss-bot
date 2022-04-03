@@ -123,7 +123,7 @@ def send_all(config):
             send_message(bot_token, chat_id, item, subscriptions[subscription] | groups[group][subscription])
 
     update_last_fetch_time(list(messages.keys()))
-    r.hmset(f"lasttimestamp:{channel}", {
+    r.hset(f"lasttimestamp", mapping={
         s: max(m, key=lambda _m: _m[0])
         for s, m in messages.items()
     })
