@@ -150,7 +150,7 @@ def send_all(config):
                 [
                     (t, item, subscription)
                     for t, item in messages[subscription]
-                    if t >= lasttimestamp.get(subscription, 0)
+                    if t >= float(lasttimestamp.get(subscription, 0))
                 ]
                 for subscription in groups[group]
                 if subscription in messages
