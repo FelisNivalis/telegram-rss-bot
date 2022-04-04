@@ -64,14 +64,14 @@ def fetch_one(config):
     item: etree._Element
     for item in doc.xpath(config.get("item_xpath", ITEM_XPATH)):
         parsed_item: Dict[str, etree._Element] = {}
-        for key, xpath in (FIELDS_XPATH | config.get("fields_xpath", {})).items():
+        for key, xpath in (FIELDS_XPATH | config.get("xpath", {})).items():
             _item = item.xpath(xpath)
             if len(_item) != 1:
                 logger.warning(f"{url=}")
                 logger.warning(f"An item has {len(_item)} (!= 1) `{key}` fields.")
                 parsed_item[key] = ""
             else:
-                parsed_item[key] = _item[0].text
+                parsed_item[key] = _item[0].text or ""
         try:
             pub_timestamp = dateutil.parser.parse(parsed_item["pubDate"]).timestamp()
         except dateutil.parser.ParserError:
