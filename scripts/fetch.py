@@ -106,10 +106,10 @@ def fetch_one(config):
                 else:
                     logger.warning(f"Unknown item type: {type(_item)}, item={_item}. {url=}, {key=}, {xpath=}")
                     parsed_item[key] = ""
-        if parsed_item["link"]:
-            yield parsed_item["link"], parsed_item
+        if (item_id := parsed_item.get("id", parsed_item.get("link"))):
+            yield item_id, parsed_item
         else:
-            logger.warning(f"The item does not have a link. RSS {url=}, item={etree.tostring(item)}")
+            logger.warning(f"The item does not have an id. Skipped. RSS {url=}, item={etree.tostring(item)}")
 
 
 last_time_send_message = datetime.datetime(1, 1, 1)
@@ -139,7 +139,7 @@ def send_message(bot_token: str, chat_id: str, item, config, admin_chat_id: str=
     if not json.loads(ret.text)["ok"]:
         logger.error(f"Send message to chat `{chat_id}` failed.")
         if admin_chat_id:
-            _send_message(bot_token, chat_id, f"Send message to chat `{chat_id}` failed.\n{message=}\nurl={ret.url}\nresponse={ret.text}")
+            _send_message(bot_token, admin_chat_id, f"Send message to chat `{chat_id}` failed.\nurl={ret.url}\nresponse={ret.text}")
     else:
         logger.debug(f"Send message to chat `{chat_id}` succeeded.")
     logger.debug(f"{message=}")
