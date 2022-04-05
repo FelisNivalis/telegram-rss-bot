@@ -1,12 +1,11 @@
 # coding: utf-8
 
 import os
-import html
-import re
 import json
 import requests
 import dateutil.parser
 import datetime
+import hashlib
 import yaml
 import math
 import time
@@ -16,22 +15,11 @@ from typing import Dict
 from collections import defaultdict
 from loguru import logger
 from const import INTERVAL, ITEM_XPATH, FIELDS_XPATH, MESSAGE_FORMAT, GROUP_CONFIG_FIELDS, r
+from common.formatter import EscapeFstringFormatter
 
 
 EXECUTE_TIMESTAMP = datetime.datetime.now().timestamp()
 SEND_MESSAGE_INTERVAL = 3
-
-
-def escape_markdown(text: str, version: int = 1) -> str:
-    # From https://github.com/python-telegram-bot/python-telegram-bot/blob/92cb6f3ae8d5c3e49b9019a9348d4408135ffc95/telegram/utils/helpers.py#L149
-    if int(version) == 1:
-        escape_chars = r'_*`['
-    elif int(version) == 2:
-        escape_chars = r'_*[]()~`>#+-=|{}.!'
-    else:
-        raise ValueError('Markdown version must be either 1 or 2!')
-
-    return re.sub(f'([{re.escape(escape_chars)}])', r'\\\1', text)
 
 
 def check_interval(subscription, interval):
@@ -52,61 +40,123 @@ def update_last_fetch_time(subscriptions):
     }) == len(subscriptions)
 
 
+def parse_from_url(method, url, source_type, kwargs):
+    content = requests.request(method, url, **kwargs).content
+    match source_type:
+        case "XML":
+            try:
+                doc = etree.XML(content)
+            except etree.XMLSyntaxError:
+                logger.error(f"Failed to parse XML: {url=}")
+                return
+        case "HTML":
+            doc = etree.HTML(content)
+            if doc is None:
+                logger.error(f"Failed to parse HTML: {url=}")
+                return
+        case "JSON":
+            try:
+                doc = json.loads(content)
+            except json.JSONDecodeError:
+                logger.error(f"Failed to parse JSON: {url=}")
+                return
+            if not isinstance(doc, dict):
+                logger.error(f"Failed to parse JSON: {url=}")
+                return
+        case _:
+            raise ValueError(f"Unsupported source type: {source_type}.")
+    return doc
+
+
+def get_xpath(node, path, source_type):
+    match source_type:
+        case "XML" | "HTML":
+            return node.xpath(path)
+        case "JSON":
+            return eval(path, {"node": node})
+
+
 def fetch_one(config):
     url = config["url"]
-    try:
-        doc = etree.XML(requests.get(url).content)
-    except etree.XMLSyntaxError:
-        logger.error(f"Failed to parse XML: {config=}")
+    if (doc := parse_from_url(
+        config.get("method", "GET"),
+        url,
+        (source_type := config.get("source_type", "XML")),
+        config.get("request_args", {})
+    )) is None:
         return
-    if len(ttl_node := doc.xpath("/rss/channel/ttl")) == 1 and (ttl := int(ttl_node[0].text)) > (interval := config.get("interval", INTERVAL)):
+    if source_type == "XML" and len(ttl_node := doc.xpath("/rss/channel/ttl")) == 1 and (ttl := int(ttl_node[0].text)) > (interval := config.get("interval", INTERVAL)):
         logger.warning(f"The recommended interval for this rss source is {ttl} (minutes), while the current interval is {interval} (minutes).")
     item: etree._Element
-    for item in doc.xpath(config.get("item_xpath", ITEM_XPATH)):
+    for item in get_xpath(doc, config.get("item_xpath", ITEM_XPATH), source_type):
         parsed_item: Dict[str, etree._Element] = {}
         for key, xpath in (FIELDS_XPATH | config.get("xpath", {})).items():
-            _item = item.xpath(xpath)
-            if len(_item) != 1:
+            if xpath is None:
+                continue
+            if len(_item := get_xpath(item, xpath, source_type)) != 1:
                 logger.warning(f"{url=}")
                 logger.warning(f"An item has {len(_item)} (!= 1) `{key}` fields.")
                 parsed_item[key] = ""
             else:
-                parsed_item[key] = _item[0].text or ""
-        try:
-            pub_timestamp = dateutil.parser.parse(parsed_item["pubDate"]).timestamp()
-        except dateutil.parser.ParserError:
-            logger.error("Failed to parse `pubDate`.")
-            logger.debug(f"pubDate={parsed_item['pubDate']}")
-            pub_timestamp = 0
-        yield pub_timestamp, parsed_item
+                _item = _item[0]
+                if isinstance(_item, etree._Element):
+                    parsed_item[key] = _item.text or ""
+                elif isinstance(_item, str):
+                    parsed_item[key] = str(_item)
+                else:
+                    logger.warning(f"Unknown item type: {type(_item)}, item={_item}. {url=}, {key=}, {xpath=}")
+                    parsed_item[key] = ""
+        if parsed_item["link"]:
+            yield parsed_item["link"], parsed_item
+        else:
+            logger.warning(f"The item does not have a link. RSS {url=}, item={etree.tostring(item)}")
 
 
-def send_message(bot_token: str, chat_id: str, item, config):
-    time.sleep(0.05)
-    args = config | item
+last_time_send_message = datetime.datetime(1, 1, 1)
+last_time_send_message_by_chat = defaultdict(lambda: datetime.datetime(1, 1, 1))
+
+
+def sleep_until(start_time: datetime.datetime, seconds: float):
+    time.sleep(max(0, seconds - (datetime.datetime.now() - start_time).total_seconds()))
+    return datetime.datetime.now()
+
+
+def _send_message(bot_token: str, chat_id: str, text: str, parse_mode: str=""):
+    # https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this
+    global last_time_send_message, last_time_send_message_by_chat
+    last_time_send_message = sleep_until(last_time_send_message, 0.05)
+    last_time_send_message_by_chat[chat_id] = sleep_until(last_time_send_message_by_chat[chat_id], 3)
+    return requests.get(f"https://api.telegram.org/bot{bot_token}/sendMessage?chat_id={chat_id}&text={text}&parse_mode={parse_mode}")
+
+
+def send_message(bot_token: str, chat_id: str, item, config, admin_chat_id: str=""):
+    global last_time_send_message
+
     parse_mode = config.get("parse_mode", "")
-    args = {
-        k: escape_markdown(v, version=2) if parse_mode == "MarkdownV2" else
-           escape_markdown(v) if parse_mode == "Markdown" else
-           html.escape(v) if parse_mode == "HTML" else
-           v
-        for k, v in args.items()
-        if isinstance(v, str)
-    }
-    message = config.get("message_format", MESSAGE_FORMAT).format(**args)
-    ret = requests.get(f"https://api.telegram.org/bot{bot_token}/sendMessage?chat_id={chat_id}&text={urllib.parse.quote(message)}&parse_mode={parse_mode}")
+    message = EscapeFstringFormatter(parse_mode).format(config.get("message_format", MESSAGE_FORMAT), **(config | item))
+
+    ret = _send_message(bot_token, chat_id, urllib.parse.quote(message), parse_mode)
     if not json.loads(ret.text)["ok"]:
         logger.error(f"Send message to chat `{chat_id}` failed.")
-        logger.debug(f"url={ret.url}")
-        logger.debug(f"{message=}")
-        logger.debug(f"ret={ret.text}")
+        if admin_chat_id:
+            _send_message(bot_token, chat_id, f"Send message to chat `{chat_id}` failed.\n{message=}\nurl={ret.url}\nresponse={ret.text}")
+    else:
+        logger.debug(f"Send message to chat `{chat_id}` succeeded.")
+    logger.debug(f"{message=}")
+    logger.debug(f"url={ret.url}")
+    logger.debug(f"response={ret.text}")
+
+
+def md5(string: str):
+    return hashlib.md5(string.encode("utf-8")).hexdigest()[:8]
 
 
 def send_all(config):
-    bot_token = config.get("BOT_TOKEN", os.environ.get("BOT_TOKEN"))
+    bot_token = config.get("bot_token", os.environ.get("BOT_TOKEN"))
     if bot_token is None:
         logger.error("No bot token is given.")
         return
+    admin_chat_id = config.get("admin_chat_id", "")
 
     subscriptions = {}
     for subscription in config.get("subscriptions", []):
@@ -123,6 +173,8 @@ def send_all(config):
 
     groups = defaultdict(dict, {s: {s: {}} for s in subscriptions})
     for name, group in config.get("rssgroups", {}).items():
+        if name in groups:
+            logger.warning(f"Repeated group `{name}`. Will overwrite the previous one.")
         group_config = group.get("config", {})
         if not set(group_config.keys()).issubset(GROUP_CONFIG_FIELDS):
             logger.error("Group has invalid config fields: {}".format(", ".join(set(group_config.keys() - GROUP_CONFIG_FIELDS))))
@@ -133,11 +185,11 @@ def send_all(config):
                 for subscription, _config in groups[subgroup].items():
                     groups[name][subscription] = _config | group_config
             else:
-                logger.error(f"Unrecognised subgroup `{subgroup}`")
+                logger.error(f"Unrecognised subgroup `{subgroup}`. Skipped.")
                 logger.debug(f"{name}: {group}")
 
     messages = {}
-    lasttimestamp = r.hgetall(f"lasttimestamp")
+    saved_content = r.hgetall(f"saved_content")
     messages_to_send = defaultdict(list)
     for channel, group in config.get("channels", {}).items():
         messages |= {
@@ -148,9 +200,9 @@ def send_all(config):
         for _, item, subscription in sorted(sum(
             [
                 [
-                    (t, item, subscription)
-                    for t, item in messages[subscription]
-                    if t > float(lasttimestamp.get(subscription, 0))
+                    (link, item, subscription)
+                    for link, item in messages[subscription]
+                    if str(md5(link)) not in saved_content.get(subscription, '')
                 ]
                 for subscription in groups[group]
                 if subscription in messages
@@ -163,23 +215,19 @@ def send_all(config):
     logger.debug(f"Number of messages to send: { {channel: len(m) for channel, m in messages_to_send.items()} }")
     while True:
         flag = False
-        time_start = datetime.datetime.now()
         for channel, _messages in messages_to_send.items():
             if idx < len(_messages):
-                send_message(*_messages[idx])
+                send_message(*_messages[idx], admin_chat_id=admin_chat_id)
                 flag = True
         if not flag:
             break
-        # https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this
-        time.sleep(max(0, 3 - (datetime.datetime.now() - time_start).total_seconds()))
         idx += 1
 
     update_last_fetch_time(list(messages.keys()))
     if messages:
-        r.hset(f"lasttimestamp", mapping={
-            s: res
+        r.hset(f"saved_content", mapping={
+            s: ":".join([str(md5(_m[0])) for _m in m])
             for s, m in messages.items()
-            if m and (res := max([_m[0] for _m in m])) > 0
         })
 
 

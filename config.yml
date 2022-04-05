@@ -8,12 +8,24 @@ subscriptions:
     name: sub3
     interval: 120 # Optional. Default: 60 (minutes)
     item_xpath: /rss/channel/item # Optional. Define the xpath to an item
+    source_type: XML # Optional. `HTML`, `XML` or `JSON`. Default: XML
     xpath: # Optional. Define the xpath to the fields in an item. Can have custom fields.
       link: ./link
       title: ./title
       description: ./description
       pubDate: ./pubDate
       customField: ./aCustomField
+  - url: url4
+    name: sub4
+    source_type: JSON
+    method: POST # HTTP method to use. Default: GET
+    request_args: # kwargs send with `requests.request`
+      json: # requests.request(method, url, json={"arg": "categoryId": 28})
+          arg:
+            categoryId: 28
+    item_xpath: "node.get('rows', [])" # Python code to get the item. Must be a list.
+    xpath:
+      link: "[str(node.get('newsId', ''))]" # Python code to get a field. Must be a list of strings.
 rssgroups: # You can group your subscriptions here
   group1: # A group containing two subscriptions
     subscriptions:
