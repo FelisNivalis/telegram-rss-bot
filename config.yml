@@ -11,12 +11,12 @@ subscriptions:
     item_xpath: /rss/channel/item # Optional. Define the xpath to an item
     source_type: XML # Optional. `HTML`, `XML` or `JSON`. Default: XML
     xpath: # Optional. Define the xpath to the fields in an item. Can have custom fields.
-      id: ./link # `id` field is used to check duplication, an empty field or a failed parse will cause a discard.
       link: ./link
       title: ./title
       description: ./description
       pubDate: ./pubDate
       customField: ./aCustomField
+    id: "link" # Python code used to check duplication, an empty field or a failed parse will cause a discard. Default: "link".
     customField: # Here you can also define custom fields to be used in `message_format`
   - url: url4
     name: sub4
@@ -41,6 +41,8 @@ rssgroups: # You can group your subscriptions here
       message_format: "{title}\n{description}\n{pubDate}\n{link}" # Optional. In Python f-string format.
       # You can also use any global functions, variables here. In `common/filters.py` defines some might be useful functions. You can fork this repo and add your own filters there.
       parse_mode: "" # Optional. Can be `MarkdownV2`, `HTMl`, `Markdown` or left blank. Default is none.
+      sortKey: "pubDate" # Python code used to sort the messages. An empty field or a failed parse will fall to default sort key.
+      defaultSortKey: "0" # Default: "0". The default value when the bot failed to parse the sort key. You should make sure it is comparable with `sortKey`. Should be a constant value that would not fail.
   group2: # A group containing one subscription
     subscriptions:
     - sub2

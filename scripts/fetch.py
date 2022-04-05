@@ -14,7 +14,7 @@ from lxml import etree
 from typing import Dict
 from collections import defaultdict
 from loguru import logger
-from const import INTERVAL, ITEM_XPATH, FIELDS_XPATH, MESSAGE_FORMAT, GROUP_CONFIG_FIELDS, r
+from const import INTERVAL, ITEM_XPATH, FIELDS_XPATH, MESSAGE_FORMAT, r
 from common.formatter import EscapeFstringFormatter
 
 
@@ -76,6 +76,33 @@ def get_xpath(node, path, source_type):
             return eval(path, {"node": node})
 
 
+def get_item_sort_key(item, subscription):
+    DEFAULT_DEFAULT_SORT_KEY = "0"
+    default_sort_key = eval(str(subscription.get("defaultSortKey", DEFAULT_DEFAULT_SORT_KEY)))
+    try:
+        sort_key_field = subscription.get("sortKey")
+        if sort_key_field is not None:
+            sort_key = eval(sort_key_field, globals() | item) or default_sort_key
+        else:
+            sort_key = default_sort_key
+    except Exception as e:
+        logger.error(f"Failed to eval sort key for an item. Error {e}. Use default key `{default_sort_key}` instead. {item=}")
+        sort_key = default_sort_key
+    return sort_key
+
+
+def get_item_id(item ,subscription):
+    DEFAULT_ID_FIELD = "link"
+    try:
+        if not (item_id := str(eval(subscription.get("id", DEFAULT_ID_FIELD), globals() | item))):
+            item_id = None
+    except Exception as e:
+        item_id = None
+    if not item_id:
+        logger.debug(f"Failed to eval id for an item. Skipped. {item=}")
+    return item_id
+
+
 def fetch_one(config):
     url = config["url"]
     if (doc := parse_from_url(
@@ -96,20 +123,18 @@ def fetch_one(config):
             if len(_item := get_xpath(item, xpath, source_type)) != 1:
                 logger.warning(f"{url=}")
                 logger.warning(f"An item has {len(_item)} (!= 1) `{key}` fields.")
-                parsed_item[key] = ""
+                parsed_item[key] = None
             else:
                 _item = _item[0]
                 if isinstance(_item, etree._Element):
-                    parsed_item[key] = _item.text or ""
+                    parsed_item[key] = _item.text or None
                 elif isinstance(_item, str):
                     parsed_item[key] = str(_item)
                 else:
-                    logger.warning(f"Unknown item type: {type(_item)}, item={_item}. {url=}, {key=}, {xpath=}")
-                    parsed_item[key] = ""
-        if (item_id := parsed_item.get("id", parsed_item.get("link"))):
-            yield item_id, parsed_item
-        else:
-            logger.warning(f"The item does not have an id. Skipped. RSS {url=}, item={etree.tostring(item)}")
+                    parsed_item[key] = _item
+                if not parsed_item[key]:
+                    logger.warning(f"Empty item: {parsed_item[key]!r}. subscription={config.get('name')}, {key=}, {xpath=}")
+        yield parsed_item
 
 
 last_time_send_message = datetime.datetime(1, 1, 1)
@@ -176,10 +201,6 @@ def send_all(config):
         if name in groups:
             logger.warning(f"Repeated group `{name}`. Will overwrite the previous one.")
         group_config = group.get("config", {})
-        if not set(group_config.keys()).issubset(GROUP_CONFIG_FIELDS):
-            logger.error("Group has invalid config fields: {}".format(", ".join(set(group_config.keys() - GROUP_CONFIG_FIELDS))))
-            logger.debug(f"{name}: {group}")
-            continue
         for subgroup in group.get("subscriptions", []):
             if subgroup in groups:
                 for subscription, _config in groups[subgroup].items():
@@ -197,18 +218,18 @@ def send_all(config):
             for subscription in groups[group]
             if subscription not in messages and check_interval(subscription, subscriptions[subscription].get("interval", INTERVAL))
         }
-        for _, item, subscription in sorted(sum(
+        for item, subscription in sorted(sum(
             [
                 [
-                    (link, item, subscription)
-                    for link, item in messages[subscription]
-                    if str(md5(link)) not in saved_content.get(subscription, '')
+                    (item, subscription)
+                    for item in messages[subscription]
+                    if (item_id := get_item_id(item, subscriptions[subscription])) and md5(item_id) not in saved_content.get(subscription, '')
                 ]
                 for subscription in groups[group]
                 if subscription in messages
             ],
             []
-        ), key=lambda _m: _m[0]):
+        ), key=lambda _m: get_item_sort_key(_m[0], groups[group][_m[1]])):
             messages_to_send[channel].append((bot_token, channel, item, subscriptions[subscription] | groups[group][subscription]))
 
     idx = 0
@@ -223,10 +244,10 @@ def send_all(config):
             break
         idx += 1
 
-    update_last_fetch_time(list(messages.keys()))
     if messages:
+        # update_last_fetch_time(list(messages.keys()))
         r.hset(f"saved_content", mapping={
-            s: ":".join([str(md5(_m[0])) for _m in m])
+            s: ":".join([md5(str(get_item_id(_m, subscriptions[s]))) for _m in m])
             for s, m in messages.items()
         })
 

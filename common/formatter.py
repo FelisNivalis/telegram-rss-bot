@@ -24,11 +24,13 @@ class EscapeFstringFormatter(string.Formatter):
     def __init__(self, mtype):
         match mtype:
             case "Markdown":
-                self.escape_func = escape_markdown
+                self.escape_func = lambda s: escape_markdown(str(s))
             case "MarkdownV2":
-                self.escape_func = lambda s: escape_markdown(s, 2)
+                self.escape_func = lambda s: escape_markdown(str(s), 2)
             case "HTML":
-                self.escape_func = html.escape
+                self.escape_func = lambda s: html.escape(str(s))
+            case "noescape":
+                self.escape_func = lambda s: s
             case _:
                 raise ValueError(f"Unsupported message type `{mtype}`")
 
