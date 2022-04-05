@@ -1,4 +1,5 @@
-bot_token: 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11 # Your bot token, you should get this when you create your bot
+admin_chat_id: "-123456789" # Optional. If the bot fails to send a message, an error message will be send to this chat.
+bot_token: 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11 # Your bot token, you should get this when you create your bot. You can either define it here or in environment variables.
 subscriptions:
   - url: url1 # Example: https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml
     name: sub1 # Example: NYTimes HP
@@ -10,29 +11,35 @@ subscriptions:
     item_xpath: /rss/channel/item # Optional. Define the xpath to an item
     source_type: XML # Optional. `HTML`, `XML` or `JSON`. Default: XML
     xpath: # Optional. Define the xpath to the fields in an item. Can have custom fields.
+      id: ./link # `id` field is used to check duplication, an empty field or a failed parse will cause a discard.
       link: ./link
       title: ./title
       description: ./description
       pubDate: ./pubDate
       customField: ./aCustomField
+    customField: # Here you can also define custom fields to be used in `message_format`
   - url: url4
     name: sub4
-    source_type: JSON
+    source_type: JSON # For XML and HTML, the fields are similar. But for JSON, it works a little bit different.
+    # For convenience, Python code is used in the "xpath" fields.
     method: POST # HTTP method to use. Default: GET
     request_args: # kwargs send with `requests.request`
       json: # requests.request(method, url, json={"arg": "categoryId": 28})
           arg:
             categoryId: 28
-    item_xpath: "node.get('rows', [])" # Python code to get the item. Must be a list.
+    item_xpath: "node.get('rows', [])" # Python code to get the item. Must be a list. `node` represents the node being processed.
+    # The reason the code here must return a list is to be consistent with XML and HTML, but it obviously adds burden to users, so it might be changed in the future.
     xpath:
       link: "[str(node.get('newsId', ''))]" # Python code to get a field. Must be a list of strings.
+      description: # There are 4 fields defined by default: link, title, description, pubDate. Leave it blank not to parse one.
 rssgroups: # You can group your subscriptions here
   group1: # A group containing two subscriptions
     subscriptions:
     - sub1
     - sub2
     config: # Optional.
-      message_format: "{title}\n{description}\n{pubDate}\n{link}" # optional
+      message_format: "{title}\n{description}\n{pubDate}\n{link}" # Optional. In Python f-string format.
+      # You can also use any global functions, variables here. In `common/filters.py` defines some might be useful functions. You can fork this repo and add your own filters there.
       parse_mode: "" # Optional. Can be `MarkdownV2`, `HTMl`, `Markdown` or left blank. Default is none.
   group2: # A group containing one subscription
     subscriptions:
