@@ -163,13 +163,11 @@ def send_message(bot_token: str, chat_id: str, item, config, admin_chat_id: str=
     ret = _send_message(bot_token, chat_id, urllib.parse.quote(message), parse_mode)
     if not json.loads(ret.text)["ok"]:
         logger.error(f"Send message to chat `{chat_id}` failed.")
+        logger.debug(f"{message=}")
+        logger.debug(f"url={ret.url}")
+        logger.debug(f"response={ret.text}")
         if admin_chat_id:
             _send_message(bot_token, admin_chat_id, f"Send message to chat `{chat_id}` failed.\nurl={ret.url}\nresponse={ret.text}")
-    else:
-        logger.debug(f"Send message to chat `{chat_id}` succeeded.")
-    logger.debug(f"{message=}")
-    logger.debug(f"url={ret.url}")
-    logger.debug(f"response={ret.text}")
 
 
 def md5(string: str):

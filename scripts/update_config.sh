@@ -3,7 +3,7 @@ if [ -z "$1" ]; then
 	exit 1
 fi
 FILE_SIZE=$(du -bsh $1 | cut -f1)
-if [[ $FILE_SIZE > 10000 ]]; then
+if [[ $FILE_SIZE > 10000000 ]]; then
 	echo "Warning: Your config file \`$1\` is large ($FILE_SIZE bytes)."
 fi
 if [ -z "$HEROKU_APP_NAME" ]; then
