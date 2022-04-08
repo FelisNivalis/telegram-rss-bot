@@ -21,7 +21,7 @@ def escape_markdown(text: str, version: int = 1) -> str:
 
 class EscapeFstringFormatter(string.Formatter):
 
-    def __init__(self, mtype):
+    def __init__(self, mtype, kwargs=None):
         match mtype:
             case "Markdown":
                 self.escape_func = lambda s: escape_markdown(str(s))
@@ -29,15 +29,18 @@ class EscapeFstringFormatter(string.Formatter):
                 self.escape_func = lambda s: escape_markdown(str(s), 2)
             case "HTML":
                 self.escape_func = lambda s: html.escape(str(s))
-            case "noescape":
+            case "":
                 self.escape_func = lambda s: s
             case _:
                 raise ValueError(f"Unsupported message type `{mtype}`")
+        if kwargs is None:
+            kwargs = globals()
+        self.kwargs = kwargs
 
     def get_field(self, field_name, args, kwargs):
         if args:
             raise ValueError("`EscapeFstringFormatter` does not support positional arguments.")
-        return eval(field_name, globals() | kwargs), field_name
+        return eval(field_name, self.kwargs | kwargs), field_name
 
     def convert_field(self, value, convension):
         if convension == "n":

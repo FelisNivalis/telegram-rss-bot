@@ -11,6 +11,7 @@ FIELDS_XPATH = {
     "description": "./description",
     "pubDate": "./pubDate",
 }
+MESSAGE_TYPE = "Message"
 MESSAGE_FORMAT = "{title}\n{description}\n{pubDate}\n{link}"
 WEBHOOK_TOKEN = os.environ.get("WEBHOOK_TOKEN", "")
 r = redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379"), decode_responses=True)

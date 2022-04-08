@@ -14,7 +14,7 @@ from lxml import etree
 from typing import Dict
 from collections import defaultdict
 from loguru import logger
-from const import INTERVAL, ITEM_XPATH, FIELDS_XPATH, MESSAGE_FORMAT, r
+from const import INTERVAL, ITEM_XPATH, FIELDS_XPATH, MESSAGE_FORMAT, MESSAGE_TYPE, r
 from common.formatter import EscapeFstringFormatter
 
 
@@ -146,28 +146,39 @@ def sleep_until(start_time: datetime.datetime, seconds: float):
     return datetime.datetime.now()
 
 
-def _send_message(bot_token: str, chat_id: str, text: str, parse_mode: str=""):
+def _send_message(bot_token: str, chat_id: str, message_type: str=MESSAGE_TYPE, **kwargs):
     # https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this
     global last_time_send_message, last_time_send_message_by_chat
     last_time_send_message = sleep_until(last_time_send_message, 0.05)
     last_time_send_message_by_chat[chat_id] = sleep_until(last_time_send_message_by_chat[chat_id], 3)
-    return requests.get(f"https://api.telegram.org/bot{bot_token}/sendMessage?chat_id={chat_id}&text={text}&parse_mode={parse_mode}")
+    return requests.get(f"https://api.telegram.org/bot{bot_token}/send{message_type}", params={"chat_id": chat_id} | kwargs)
 
 
 def send_message(bot_token: str, chat_id: str, item, config, admin_chat_id: str=""):
-    global last_time_send_message
+    message_config = config.get("message_config", {})
+    message_type = message_config.get("type", MESSAGE_TYPE)
+    message_args = ({"text": MESSAGE_FORMAT} if message_type == MESSAGE_TYPE else {}) | message_config.get("args", {})
+    parse_mode = message_args.get("parse_mode", "")
 
-    parse_mode = config.get("parse_mode", "")
-    message = EscapeFstringFormatter(parse_mode).format(config.get("message_format", MESSAGE_FORMAT), **(config | item))
+    ret = _send_message(
+        bot_token, chat_id, message_type,
+        **{
+            k: EscapeFstringFormatter(
+                parse_mode
+                if k in ["text", "caption"]
+                else ""
+            ).format(v, **(config | item))
+            for k, v in message_args.items()
+        }
+    )
 
-    ret = _send_message(bot_token, chat_id, urllib.parse.quote(message), parse_mode)
     if not json.loads(ret.text)["ok"]:
-        logger.error(f"Send message to chat `{chat_id}` failed.")
-        logger.debug(f"{message=}")
+        logger.error(f"Send {message_type} to chat `{chat_id}` failed.")
+        logger.debug(f"{message_args=}")
         logger.debug(f"url={ret.url}")
         logger.debug(f"response={ret.text}")
         if admin_chat_id:
-            _send_message(bot_token, admin_chat_id, f"Send message to chat `{chat_id}` failed.\nurl={ret.url}\nresponse={ret.text}")
+            _send_message(bot_token, admin_chat_id, text=f"Send {message_type} to chat `{chat_id}` failed.\nurl={ret.url}\nresponse={ret.text}")
 
 
 def md5(string: str):
@@ -194,15 +205,15 @@ def send_all(config):
         else:
             subscriptions[name] = subscription
 
-    groups = defaultdict(dict, {s: {s: {}} for s in subscriptions})
+    groups = defaultdict(list, {s: [(s, {})] for s in subscriptions})
     for name, group in config.get("rssgroups", {}).items():
         if name in groups:
             logger.warning(f"Repeated group `{name}`. Will overwrite the previous one.")
         group_config = group.get("config", {})
         for subgroup in group.get("subscriptions", []):
             if subgroup in groups:
-                for subscription, _config in groups[subgroup].items():
-                    groups[name][subscription] = _config | group_config
+                for subscription, _config in groups[subgroup]:
+                    groups[name].append((subscription, _config | group_config))
             else:
                 logger.error(f"Unrecognised subgroup `{subgroup}`. Skipped.")
                 logger.debug(f"{name}: {group}")
@@ -213,22 +224,22 @@ def send_all(config):
     for channel, group in config.get("channels", {}).items():
         messages |= {
             subscription: list(fetch_one(subscriptions[subscription]))
-            for subscription in groups[group]
+            for subscription, _config in groups[group]
             if subscription not in messages and check_interval(subscription, subscriptions[subscription].get("interval", INTERVAL))
         }
-        for item, subscription in sorted(sum(
+        for item, subscription, _config in sorted(sum(
             [
                 [
-                    (item, subscription)
+                    (item, subscription, _config)
                     for item in messages[subscription]
                     if (item_id := get_item_id(item, subscriptions[subscription])) and md5(item_id) not in saved_content.get(subscription, '')
                 ]
-                for subscription in groups[group]
+                for subscription, _config in groups[group]
                 if subscription in messages
             ],
             []
-        ), key=lambda _m: get_item_sort_key(_m[0], groups[group][_m[1]])):
-            messages_to_send[channel].append((bot_token, channel, item, subscriptions[subscription] | groups[group][subscription]))
+        ), key=lambda _m: get_item_sort_key(subscriptions[_m[1]] | _m[0], _m[2])):
+            messages_to_send[channel].append((bot_token, channel, item, subscriptions[subscription] | _config))
 
     idx = 0
     logger.debug(f"Number of messages to send: { {channel: len(m) for channel, m in messages_to_send.items()} }")
@@ -243,7 +254,7 @@ def send_all(config):
         idx += 1
 
     if messages:
-        # update_last_fetch_time(list(messages.keys()))
+        update_last_fetch_time(list(messages.keys()))
         r.hset(f"saved_content", mapping={
             s: ":".join([md5(str(get_item_id(_m, subscriptions[s]))) for _m in m])
             for s, m in messages.items()
