@@ -79,14 +79,14 @@ def get_xpath(node, path, source_type):
 def get_item_sort_key(item, subscription):
     DEFAULT_DEFAULT_SORT_KEY = "0"
     default_sort_key = eval(str(subscription.get("defaultSortKey", DEFAULT_DEFAULT_SORT_KEY)), FILTERS)
+    sort_key_field = subscription.get("sortKey")
     try:
-        sort_key_field = subscription.get("sortKey")
         if sort_key_field is not None:
             sort_key = eval(sort_key_field, FILTERS | item) or default_sort_key
         else:
             sort_key = default_sort_key
     except Exception as e:
-        logger.error(f"Failed to eval sort key for an item. Error {e}. Use default key `{default_sort_key}` instead. {item=}")
+        logger.error(f"Failed to eval sort key for an item. Error {e}. Use default key `{default_sort_key}` instead. {item=}, {sort_key_field=}")
         sort_key = default_sort_key
     return sort_key
 
