@@ -42,7 +42,12 @@ rssgroups: # You can group your subscriptions here
         type: "Message" # For available types and args, see https://core.telegram.org/bots/api#sendmessage and other methods.
         args:
           text: "{title}\n{description}\n{pubDate}\n{link}" # Optional. In Python f-string format.
-          # You can also use any global functions, variables here. In `common/filters.py` defines some might be useful functions. You can fork this repo and add your own filters there.
+          # You can define some useful functions and variables and set the content to the redis key `filters`.
+          # e.g.
+          # r.set("filters", "define f():\nreturn 42")
+          # then you can use `text: "{f()}"` and get `42`
+          # Remember to write the redis in your heroku app, not only locally.
+          # Use `heroku run python` to start a python cmd remotely.
           parse_mode: "" # Optional. Can be `MarkdownV2`, `HTMl`, `Markdown` or left blank. Default is none.
       sortKey: "pubDate" # Python code used to sort the messages. An empty field or a failed parse will fall to default sort key.
       defaultSortKey: "0" # Default: "0". The default value when the bot failed to parse the sort key. You should make sure it is comparable with `sortKey`. Should be a constant value that would not fail.

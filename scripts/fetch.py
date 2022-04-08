@@ -14,7 +14,7 @@ from lxml import etree
 from typing import Dict
 from collections import defaultdict
 from loguru import logger
-from const import INTERVAL, ITEM_XPATH, FIELDS_XPATH, MESSAGE_FORMAT, MESSAGE_TYPE, r
+from const import INTERVAL, ITEM_XPATH, FIELDS_XPATH, MESSAGE_FORMAT, MESSAGE_TYPE, FILTERS, r
 from common.formatter import EscapeFstringFormatter
 
 
@@ -78,11 +78,11 @@ def get_xpath(node, path, source_type):
 
 def get_item_sort_key(item, subscription):
     DEFAULT_DEFAULT_SORT_KEY = "0"
-    default_sort_key = eval(str(subscription.get("defaultSortKey", DEFAULT_DEFAULT_SORT_KEY)))
+    default_sort_key = eval(str(subscription.get("defaultSortKey", DEFAULT_DEFAULT_SORT_KEY)), FILTERS)
     try:
         sort_key_field = subscription.get("sortKey")
         if sort_key_field is not None:
-            sort_key = eval(sort_key_field, globals() | item) or default_sort_key
+            sort_key = eval(sort_key_field, FILTERS | item) or default_sort_key
         else:
             sort_key = default_sort_key
     except Exception as e:
@@ -94,7 +94,7 @@ def get_item_sort_key(item, subscription):
 def get_item_id(item ,subscription):
     DEFAULT_ID_FIELD = "link"
     try:
-        if not (item_id := str(eval(subscription.get("id", DEFAULT_ID_FIELD), globals() | item))):
+        if not (item_id := str(eval(subscription.get("id", DEFAULT_ID_FIELD), FILTERS | item))):
             item_id = None
     except Exception as e:
         item_id = None
@@ -166,7 +166,7 @@ def send_message(bot_token: str, chat_id: str, item, config, admin_chat_id: str=
             k: EscapeFstringFormatter(
                 parse_mode
                 if k in ["text", "caption"]
-                else ""
+                else "", FILTERS
             ).format(v, **(config | item))
             for k, v in message_args.items()
         }

@@ -4,7 +4,6 @@ import html
 import re
 import string
 from loguru import logger
-from common.filters import * # noqa
 
 
 def escape_markdown(text: str, version: int = 1) -> str:
@@ -33,8 +32,6 @@ class EscapeFstringFormatter(string.Formatter):
                 self.escape_func = lambda s: s
             case _:
                 raise ValueError(f"Unsupported message type `{mtype}`")
-        if kwargs is None:
-            kwargs = globals()
         self.kwargs = kwargs
 
     def get_field(self, field_name, args, kwargs):
