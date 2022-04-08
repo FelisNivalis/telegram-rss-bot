@@ -17,7 +17,7 @@ subscriptions:
       pubDate: ./pubDate
       customField: ./aCustomField
     id: "link" # Python code used to check duplication, an empty field or a failed parse will cause a discard. Default: "link".
-    customField: # Here you can also define custom fields to be used in `message_format`
+    customField: # Here you can also define custom fields to be used in `message_config`
   - url: url4
     name: sub4
     source_type: JSON # For XML and HTML, the fields are similar. But for JSON, it works a little bit different.
@@ -38,9 +38,12 @@ rssgroups: # You can group your subscriptions here
     - sub1
     - sub2
     config: # Optional.
-      message_format: "{title}\n{description}\n{pubDate}\n{link}" # Optional. In Python f-string format.
-      # You can also use any global functions, variables here. In `common/filters.py` defines some might be useful functions. You can fork this repo and add your own filters there.
-      parse_mode: "" # Optional. Can be `MarkdownV2`, `HTMl`, `Markdown` or left blank. Default is none.
+      message_config:
+        type: "Message" # For available types and args, see https://core.telegram.org/bots/api#sendmessage and other methods.
+        args:
+          text: "{title}\n{description}\n{pubDate}\n{link}" # Optional. In Python f-string format.
+          # You can also use any global functions, variables here. In `common/filters.py` defines some might be useful functions. You can fork this repo and add your own filters there.
+          parse_mode: "" # Optional. Can be `MarkdownV2`, `HTMl`, `Markdown` or left blank. Default is none.
       sortKey: "pubDate" # Python code used to sort the messages. An empty field or a failed parse will fall to default sort key.
       defaultSortKey: "0" # Default: "0". The default value when the bot failed to parse the sort key. You should make sure it is comparable with `sortKey`. Should be a constant value that would not fail.
   group2: # A group containing one subscription
@@ -53,5 +56,5 @@ rssgroups: # You can group your subscriptions here
     - group1
     - group2
 channels:
-  channel_name_1: group1 # Push the content from `group1` to the channel `channel_name_1`
-  channel_name_2: sub1
+  chat_id_1: group1 # Push the content from `group1` to the chat with `chan_id_1`
+  chat_id_2: sub1 # Push `sub1` to `chat_id_2`
