@@ -18,7 +18,7 @@ To use the bot, you need to start your own bot and build your own server. This r
 - In *a Heroku console*, run the shell script `scripts/set_webhook.sh`. You can start a Heroku console with Heroku CLI or under "More -> Run console" on your app dashboard.
 - In Telegram, add your bot to some groups/channels and promote the bot as an administrator. You should at least allow the bot to post messages.
 - Check the chats information with `http://YOUR-APP.heroku.com/getChats` and prepare your `myconfig.yml`.
-- Create a `myconfig.yml` similar to `config.yml` and run *locally* the shell script `scripts/update_config.sh`. ~~Alternatively, you can configure your bot via telegram~~ (TODO (maybe...))
+- Create a `myconfig.yml` similar to `simple_config.yml` (simple version) or `config.yml` (complete version) and run *locally* the shell script `scripts/update_config.sh`. ~~Alternatively, you can configure your bot via telegram~~ (TODO (maybe...))
 - Add a job `python scripts/fetch.py` to your Heroku Scheduler
 
 ## APIs
