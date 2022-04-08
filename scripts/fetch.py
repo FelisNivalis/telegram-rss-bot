@@ -133,7 +133,7 @@ def fetch_one(config):
                 else:
                     parsed_item[key] = _item
                 if not parsed_item[key]:
-                    logger.warning(f"Empty item: {parsed_item[key]!r}. subscription={config.get('name')}, {key=}, {xpath=}")
+                    logger.warning(f"Empty `{key}`: {parsed_item[key]!r}. subscription={config.get('name')}, {key=}, {xpath=}")
         yield parsed_item
 
 
@@ -247,6 +247,7 @@ def send_all(config):
         r.hset(f"saved_content", mapping={
             s: ":".join([md5(str(get_item_id(_m, subscriptions[s]))) for _m in m])
             for s, m in messages.items()
+            if m
         })
 
 
