@@ -1,4 +1,4 @@
-admin_chat_id: "-123456789" # Optional. If the bot fails to send a message, an error message will be send to this chat.
+admin_chat_id: "-123456789" # Optional. Will send a report after every run.
 bot_token: 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11 # Your bot token, you should get this when you create your bot. You can either define it here or in environment variables.
 feeds:
   - name: feed1 # Example: NYTimes HP
