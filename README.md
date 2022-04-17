@@ -14,7 +14,7 @@ To use the bot, you need to start your own bot and build your own server. This r
 - Under "Deploy", choose a deployment method that suits you and follow the instructions.
 - Under "Settings -> Config Vars", add a variable `WEBHOOK_TOKEN` (refer to [here](https://core.telegram.org/bots/api#setwebhook)). You can use a long, randomly generated string (recommended!), as you won't need it elsewhere.
 - Similarly, add `BOT_TOKEN`, which should be found when you create your bot.
-- Then, add `APP_NAME`, the name of your application.
+- Then, add `HEROKU_APP_NAME`, the name of your application, or enable [Dyno Metadata](https://devcenter.heroku.com/articles/dyno-metadata).
 - In *a Heroku console*, run the shell script `scripts/set_webhook.sh`. You can start a Heroku console with Heroku CLI or under "More -> Run console" on your app dashboard.
 - In Telegram, add your bot to some groups/channels and promote the bot as an administrator. You should at least allow the bot to post messages.
 - Check the chats information with `http://YOUR-APP.heroku.com/getChats` and prepare your `myconfig.yml`.
