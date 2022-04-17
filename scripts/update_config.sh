@@ -2,8 +2,8 @@ if [ -z "$1" ]; then
 	echo "Usage: bash update_config.sh [Your config yaml file]"
 	exit 1
 fi
-FILE_SIZE=$(du -bsh $1 | cut -f1)
-if [[ $FILE_SIZE > 10000000 ]]; then
+FILE_SIZE=$(du -bs $1 | cut -f1)
+if [ $FILE_SIZE -ge 10000000 ]; then
 	echo "Warning: Your config file \`$1\` is large ($FILE_SIZE bytes)."
 fi
 if [ -z "$HEROKU_APP_NAME" ]; then

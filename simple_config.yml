@@ -1,16 +1,16 @@
 admin_chat_id: "-123456789" # Optional. If the bot fails to send a message, an error message will be send to this chat.
 bot_token: 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11 # Your bot token, you should get this when you create your bot. You can either define it here or in environment variables.
-subscriptions:
-  - url: url1 # Example: https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml
-    name: sub1 # Example: NYTimes HP
-  - url: url2
-    name: sub2
+feeds:
+  - name: feed1 # Example: NYTimes HP
+    url: url1 # Example: https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml
+  - name: feed2
+    url: url2
     interval: 120 # Optional. Default: 60 (minutes)
-rssgroups: # You can group your subscriptions here
-  group1: # A group containing 2 subscriptions
-    subscriptions:
-    - sub1
-    - sub2
-channels:
+rssgroups: # You can group your feeds here
+  - name: group1 # A group containing 2 feeds
+    feeds:
+      - feed1
+      - feed2
+chats:
   chat_id_1: group1 # Push the content from `group1` to the chat with `chan_id_1`
-  chat_id_2: sub1 # Push `sub1` to `chat_id_2`
+  chat_id_2: feed1 # Push `feed1` to `chat_id_2`

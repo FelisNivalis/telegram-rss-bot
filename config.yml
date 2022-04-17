@@ -1,65 +1,78 @@
 admin_chat_id: "-123456789" # Optional. If the bot fails to send a message, an error message will be send to this chat.
 bot_token: 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11 # Your bot token, you should get this when you create your bot. You can either define it here or in environment variables.
-subscriptions:
-  - url: url1 # Example: https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml
-    name: sub1 # Example: NYTimes HP
-  - url: url2
-    name: sub2
-  - url: url3
-    name: sub3
+feeds:
+  - name: feed1 # Example: NYTimes HP
+    url: url1 # Example: https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml
+  - name: feed2
+    url: url2
+  - name: feed3
+    url: url3
     interval: 120 # Optional. Default: 60 (minutes)
-    item_xpath: /rss/channel/item # Optional. Define the xpath to an item
+    item_xpath: ./channel/item # Optional. Define the xpath to an item
     source_type: XML # Optional. `HTML`, `XML` or `JSON`. Default: XML
     xpath: # Optional. Define the xpath to the fields in an item. Can have custom fields.
-      link: ./link
-      title: ./title
-      description: ./description
-      pubDate: ./pubDate
-      customField: ./aCustomField
-    id: "link" # Python code used to check duplication, an empty field or a failed parse will cause a discard. Default: "link".
-    customField: # Here you can also define custom fields to be used in `message_config`
-  - url: url4
-    name: sub4
+      link: ./link/text()
+      title: ./title/text()
+      description: ./description/text()
+      pub_date: ./pubDate/text()
+      custom_field1: ./aCustomField/@someAttr
+    id: "link" # Python code used to check duplication with previous retrieve, an empty field or a failed parse will cause a discard. Must be hashable. Default: "link".
+    # A RSS source does not know what you have retrieved last time, so it is necessary to keep track of what has been sent.
+    # Feeds are expected to be like a chronological timeline, or at least only prepend new content to the head.
+    # The rationale of the expectation is that messages in a Telegram chat are shwon in chronological order.
+    # Generate a random number is you really want to send everything
+    fields: # Here you can also define custom fields to be used in `message_config`
+      custom_field2: someValue
+  - name: feed4
+    url: url4
     source_type: JSON # For XML and HTML, the fields are similar. But for JSON, it works a little bit different.
     # For convenience, Python code is used in the "xpath" fields.
     method: POST # HTTP method to use. Default: GET
     request_args: # kwargs send with `requests.request`
-      json: # requests.request(method, url, json={"arg": "categoryId": 28})
-          arg:
-            categoryId: 28
+      json: # requests.request(method, url, json={"arg": {"categoryId": 28}})
+        arg:
+          categoryId: 28
     item_xpath: "node.get('rows', [])" # Python code to get the item. Must be a list. `node` represents the node being processed.
     # The reason the code here must return a list is to be consistent with XML and HTML, but it obviously adds burden to users, so it might be changed in the future.
     xpath:
       link: "[str(node.get('newsId', ''))]" # Python code to get a field. Must be a list of strings.
       description: # There are 4 fields defined by default: link, title, description, pubDate. Leave it blank not to parse one.
-rssgroups: # You can group your subscriptions here
-  group1: # A group containing two subscriptions
-    subscriptions:
-    - sub1
-    - sub2
-    config: # Optional.
-      message_config:
-        type: "Message" # For available types and args, see https://core.telegram.org/bots/api#sendmessage and other methods.
-        args:
-          text: "{title}\n{description}\n{pubDate}\n{link}" # Optional. In Python f-string format.
-          # You can define some useful functions and variables and set the content to the redis key `filters`.
-          # e.g.
-          # r.set("filters", "define f():\nreturn 42")
-          # then you can use `text: "{f()}"` and get `42`
-          # Remember to write the redis in your heroku app, not only locally.
-          # Use `heroku run python` to start a python cmd remotely.
-          parse_mode: "" # Optional. Can be `MarkdownV2`, `HTMl`, `Markdown` or left blank. Default is none.
-      sortKey: "pubDate" # Python code used to sort the messages. An empty field or a failed parse will fall to default sort key.
-      defaultSortKey: "0" # Default: "0". The default value when the bot failed to parse the sort key. You should make sure it is comparable with `sortKey`. Should be a constant value that would not fail.
-  group2: # A group containing one subscription
-    subscriptions:
-    - sub2
-  group3: # A group containing some subscriptions and some other groups
-    subscriptions:
-    - sub3
-    - sub1
-    - group1
-    - group2
-channels:
+rssgroups: # You can group your feeds here
+  - name: group1 # A group containing two feeds
+    feeds:
+      - feed1
+      - feed2
+    # Below are optional.
+    message_config:
+      type: "Message" # For available types and args, see https://core.telegram.org/bots/api#sendmessage and other methods.
+      args:
+        text: "{title}\n{description}\n{pubDate}\n{link}" # Optional. In Python f-string format.
+        # What can be used here include:
+        # 1. fields defined in `xpath`
+        # 2. fields defined in `fields` of the feed
+        # 3. fields defined in `fields` of the group
+        # 4. user-defined functions
+        # 5. special variables:
+        #   `feed_config`, a dict of the config of the feed
+        #   `group_config`, a dict of the config of the group
+        # You can define functions and variables in `funcs.py`
+        # Remember to push your `funcs.py` to Heroku and that you might need a `my-requirements.txt`.
+        parse_mode: "" # Optional. Can be `MarkdownV2`, `HTMl`, `Markdown` or left blank. Default is none.
+    sort_key: "pubDate" # Python code used to sort the messages. An empty field or a failed parse will fall to default sort key.
+    # The reason pure Python code rather than f-string is used here is to enable using other types than strings.
+    default_sort_key: "0" # Default: "0". The default value when the bot failed to parse the sort key. You should make sure it is comparable with `sort_key`. Should be a constant value that never fails.
+    id: "link" # Python code used to check duplication, an empty field or a failed parse will cause a discard. Must be hashable. Default to be the same as each feed's id.
+    fields:
+      custom_field1: abc # Similarly, a group can have custom fields.
+  - name: group2 # A group containing one feed
+    feeds:
+      - feed2
+  - name: group3 # A group containing some feeds and some other groups
+    feeds:
+      - feed3
+      - feed1
+      - group1
+      - group2
+chats:
   chat_id_1: group1 # Push the content from `group1` to the chat with `chan_id_1`
-  chat_id_2: sub1 # Push `sub1` to `chat_id_2`
+  chat_id_2: feed1 # Push `feed1` to `chat_id_2`
