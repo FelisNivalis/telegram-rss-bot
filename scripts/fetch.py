@@ -40,9 +40,9 @@ def get_report_string():
     if len(report.get('parse_from_url_errors', [])):
         report_string.append(f"Detected errors when parsing: {', '.join(report['parse_from_url_errors'])}")
     if len(report.get("field_parsing_failure", [])):
-        report_string.extend([f"In feed {name}, {c} items have {num} (!= 1) `{key}` fields." for (name, key, num), c in Counter(report["field_parsing_failure"])])
+        report_string.extend([f"In feed {name}, {c} items have {num} (!= 1) `{key}` fields." for (name, key, num), c in Counter(report["field_parsing_failure"]).items()])
     if len(report.get("get_item_sort_key_errors", [])):
-        report_string.extend([f"{c} items in group {name} failed to evaluate sort key `{sort_key}`. Default: `{default!r}`." for (name, sort_key, default), c in Counter(report["get_item_sort_key_errors"])])
+        report_string.extend([f"{c} items in group {name} failed to evaluate sort key `{sort_key}`. Default: `{default!r}`." for (name, sort_key, default), c in Counter(report["get_item_sort_key_errors"]).items()])
     if len(report["get_feed_item_id_errors"]):
         report_string.append(f"Num of errors when evaluating feed item id: {report['get_feed_item_id_errors']}.")
     if len(report["get_group_item_id_errors"]):
