@@ -158,7 +158,7 @@ def get_item_sort_key(item, config):
             sort_key_field,
             default_sort_key,
         ))
-        logger.error(f"Failed to eval sort key for a feed in group {item['name']}. Error `{e}`. Use default key `{default_sort_key}` instead. {item=}, {sort_key_field=}")
+        logger.error(f"Failed to eval sort key for a feed in group {config['name']}. Error `{e}`. Use default key `{default_sort_key}` instead. {item=}, {sort_key_field=}")
         sort_key = default_sort_key
     return sort_key
 
