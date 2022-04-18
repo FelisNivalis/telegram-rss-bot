@@ -56,7 +56,7 @@ def get_report_string():
     ])
     report_string.append(f"Number of messages to send:")
     report_string.extend([f"  {item['num']} messages of group {item['chat']} (feeds: {', '.join(item['feeds'])}) to {item['chat_id']} ({get_chat_info(item['chat_id'])})" for item in report["num_messages"]])
-    if len(report["send_message_errors"]):
+    if len(report.get("send_message_errors", [])):
         report_string.append(f"Num of errors when sending messages: {', '.join(['{} ({}): {}'.format(chat_id, get_chat_info(chat_id), value) for chat_id, value in report['send_message_errors'].items()])}.")
     return '\n'.join(report_string)
 
