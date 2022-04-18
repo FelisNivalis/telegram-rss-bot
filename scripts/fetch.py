@@ -16,6 +16,7 @@ from collections import defaultdict
 from loguru import logger
 from const import INTERVAL, ITEM_XPATH, FIELDS_XPATH, MESSAGE_FORMAT, MESSAGE_TYPE, FUNCS, r
 from common.formatter import EscapeFstringFormatter
+from common.merge_dict import merge_dict
 from source_type import source_type_class_map
 
 
@@ -202,21 +203,25 @@ def send_all(config):
 
     feeds = {}
     for feed in config.get("feeds", []):
-        url = feed.get("url")
-        if url is None:
-            logger.error("No url for the feed.")
-            logger.debug(f"{feed=}")
-            continue
-
-        name = feed.get("name")
-        if name is None:
+        if (name := feed.get("name")) is None:
             logger.error("No name for the feed.")
             logger.debug(f"{feed=}")
             continue
+        expand_from = feed.get("expand_from")
+        if expand_from is not None:
+            if not isinstance(expand_from, list):
+                logger.warning(f"`expand_from` of feed {name} is of type `{type(expand_from)}`, should be a list.")
+            else:
+                for from_feed in reversed(expand_from):
+                    if from_feed not in feeds:
+                        logger.error(f"Unknown feed {from_feed} to expand from. Asked by {feed.get('name')}.")
+                        logger.debug(f"{feed=}")
+                    else:
+                        feed = merge_dict(feeds[from_feed], feed)
 
         feeds[name] = feed
 
-    group_feeds = defaultdict(list, {name: [(name, {})] for name, feed in feeds.items()})
+    group_feeds = defaultdict(list, {name: [(name, {})] for name, feed in feeds.items() if "url" in feed})
     for group in config.get("rssgroups", []):
         group_name = group.get("name")
         if not group_name:
@@ -230,7 +235,7 @@ def send_all(config):
             continue
         for group_feed in group.get("feeds", []):
             if group_feed in group_feeds:
-                group_feeds[group_name] += [(_name, _config | group) for _name, _config in group_feeds[group_feed]]
+                group_feeds[group_name] += [(_name, merge_dict(_config, group)) for _name, _config in group_feeds[group_feed]]
             else:
                 logger.error(f"Unrecognised feed `{group_feed}` in group `{group_name}`. Skipped.")
 
@@ -244,6 +249,7 @@ def send_all(config):
     feeds_to_fetch = filter_feeds_by_interval({
         feed_name: feed.get("interval", INTERVAL)
         for feed_name, feed in feeds.items()
+        if "url" in feed
     }) & feeds_to_send
 
     report["feeds_to_fetch"] = list(feeds_to_fetch)
@@ -264,6 +270,12 @@ def send_all(config):
 
     send_message_args = defaultdict(list)
     for chat_id, group_name in chats.items():
+        logger.debug(f"get_item_sort_key {chat_id}, {group_name}")
+        logger.debug(', '.join([
+            "{}, {}".format(item, get_item_sort_key({"feed_config": feeds[feed_name], "group_config": group_feed_config} | group_feed_config.get("fields", {}) | item, group_feed_config))
+            for feed_name, group_feed_config in group_feeds[group_name]
+            for item in feed_items.get(feed_name, [])
+        ]))
         item_ids = set()
         for item in sorted([
             {"feed_config": feeds[feed_name], "group_config": group_feed_config} | group_feed_config.get("fields", {}) | item

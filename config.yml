@@ -37,6 +37,19 @@ feeds:
     xpath:
       link: "[str(node.get('newsId', ''))]" # Python code to get a field. Must be a list of strings.
       description: # There are 4 fields defined by default: link, title, description, pubDate. Leave it blank not to parse one.
+  - name: feed_template # You can also define a feed for other feeds to expand from.
+    source_type: HTML
+    item_xpath: .//div[@class='article']
+    xpath:
+      link: ./@src
+      title: ./h3/text()
+      description: .//p/text()
+      pub_date: .//span/text()
+  - name: feed5
+    url: url5
+    expand_from: # A feed can be expanded from any other feeds.
+      - feed_template
+      - feed3
 rssgroups: # You can group your feeds here
   - name: group1 # A group containing two feeds
     feeds:
