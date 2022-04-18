@@ -322,6 +322,7 @@ def send_all(config):
     for feed_name in feeds_to_fetch:
         feed = feeds[feed_name]
         item_ids = feed_item_ids.get(feed_name, "")
+        logger.debug(f"Get feed items from feed {feed_name}")
         for item in get_feed_items(feed):
             item_id = get_item_id(item, feeds[feed_name].get("id"))
             if item_id is None:
@@ -354,7 +355,9 @@ def send_all(config):
                 send_message_args[chat_id].append((bot_token, chat_id, item, item["group_config"]))
 
     report["num_messages"] = [{"num": len(m), "chat": chats[chat_id], "feeds": [name for name, _ in group_feeds[chats[chat_id]]], "chat_id": chat_id} for chat_id, m in send_message_args.items()]
-    for idx in range(max([len(m) for chat_id, m in send_message_args.items()], default=0)):
+    logger.debug(f"Messages to send: {report['num_messages']}")
+    for idx in range(max_idx := max([len(m) for chat_id, m in send_message_args.items()], default=0)):
+        logger.debug(f"Send messages ... ({idx} / {max_idx})")
         for chat_id, _messages in send_message_args.items():
             if idx < len(_messages):
                 send_message(*_messages[idx], admin_chat_id=admin_chat_id)
