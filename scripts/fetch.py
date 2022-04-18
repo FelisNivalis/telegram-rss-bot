@@ -68,7 +68,7 @@ def get_report_string():
         else:
             lines.append(cur_line)
             cur_line = line
-    return lines
+    return [f"Page {idx+1}/{len(lines)}\n{line}" for idx, line in enumerate(lines)]
 
 
 def filter_feeds_by_interval(intervals):
