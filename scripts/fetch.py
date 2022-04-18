@@ -12,7 +12,7 @@ import time
 import urllib
 from lxml import etree
 from typing import Dict
-from collections import defaultdict
+from collections import defaultdict, Counter
 from loguru import logger
 from const import INTERVAL, ITEM_XPATH, FIELDS_XPATH, MESSAGE_FORMAT, MESSAGE_TYPE, FUNCS, r
 from common.formatter import EscapeFstringFormatter
@@ -36,6 +36,16 @@ def get_report_string():
     ])
     report_string.append(f"Feeds attached to at least one chat: {', '.join(report['feeds_to_send'])}")
     report_string.append(f"Retrieve from: {', '.join(report['feeds_to_fetch'])}")
+    if len(report.get('parse_from_url_errors', [])):
+        report_string.append(f"Detected errors when parsing: {', '.join(report['parse_from_url_errors'])}")
+    if len(report.get("field_parsing_failure", [])):
+        report_string.extent([f"In feed {name}, {c} items have {num} (!= 1) `{key}` fields." for (name, key, num), c in Counter(report["field_parsing_failure"])])
+    if len(report.get("get_item_sort_key_errors", [])):
+        report_string.extent([f"{c} items in group {name} failed to evaluate sort key `{sort_key}`. Default: `{default!r}`." for (name, sort_key, default), c in Counter(report["get_item_sort_key_errors"])])
+    if len(report["get_feed_item_id_errors"]):
+        report_string.append(f"Num of errors when evaluating feed item id: {report['get_feed_item_id_errors']}.")
+    if len(report["get_group_item_id_errors"]):
+        report_string.append(f"Num of errors when evaluating group item id: {report['get_group_item_id_errors']}.")
     report_string.append(f"Fetching results:")
     report_string.extend([
         f"  {item['num']} items from {item['name']}. Overlapping starts from {item['item_id']}."
@@ -45,6 +55,8 @@ def get_report_string():
     ])
     report_string.append(f"Number of messages to send:")
     report_string.extend([f"  {item['num']} messages of group {item['chat']} (feeds: {', '.join(item['feeds'])}) to {item['chat_id']}" for item in report["num_messages"]])
+    if len(report["send_message_errors"]):
+        report_string.append(f"Num of errors when sending messages: {report['send_message_errors']}.")
     return '\n'.join(report_string)
 
 
@@ -91,17 +103,23 @@ def get_xpath(node, path, source_type):
 
 
 def get_feed_items(config):
+    if "parse_from_url_errors" not in report:
+        report["parse_from_url_errors"] = []
     if (doc := parse_from_url(
         config.get("method", "GET"),
         config["url"],
         (source_type := config.get("source_type", "XML")),
         config.get("request_args", {})
     )) is None:
+        report["parse_from_url_errors"].append({
+            "name": config["name"],
+        })
         return
 
     if source_type == "XML" and len(ttl_node := doc.xpath("/rss/channel/ttl/text()")) == 1 and ttl_node[0].isdigit() and (ttl := int(ttl_node[0])) > (interval := config.get("interval", INTERVAL)):
         logger.warning(f"The recommended interval for this feed is {ttl} minutes, while the interval you set is {interval} minutes.")
 
+    report["field_parsing_failure"] = []
     item: etree._Element
     for item in get_xpath(doc, config.get("item_xpath", ITEM_XPATH), source_type):
         fields: Dict[str, etree._Element] = {}
@@ -110,7 +128,12 @@ def get_feed_items(config):
                 # Can be deliberately set to `None` to skip default fields.
                 continue
             if len(field := get_xpath(item, xpath, source_type)) != 1:
-                logger.warning(f"An item from url `{config['url']}` has {len(field)} (!= 1) `{key}` fields.")
+                report["field_parsing_failure"].append((
+                    config['name'],
+                    key,
+                    len(field),
+                ))
+                logger.warning(f"An item from feed {config['name']} (url `{config['url']}`) has {len(field)} (!= 1) `{key}` fields.")
                 fields[key] = None
             else:
                 fields[key] = field[0]
@@ -120,13 +143,19 @@ def get_feed_items(config):
 def get_item_sort_key(item, config):
     default_sort_key = eval(str(config.get("default_sort_key", "0")), FUNCS)
     sort_key_field = config.get("sort_key")
+    report["get_item_sort_key_errors"] = []
     try:
         if sort_key_field is not None:
             sort_key = eval(sort_key_field, FUNCS | item) or default_sort_key
         else:
             sort_key = default_sort_key
     except Exception as e:
-        logger.error(f"Failed to eval sort key for a feed. Error `{e}`. Use default key `{default_sort_key}` instead. {item=}, {sort_key_field=}")
+        report["get_item_sort_key_errors"].append((
+            config["name"],
+            sort_key_field,
+            default_sort_key,
+        ))
+        logger.error(f"Failed to eval sort key for a feed in group {item['name']}. Error `{e}`. Use default key `{default_sort_key}` instead. {item=}, {sort_key_field=}")
         sort_key = default_sort_key
     return sort_key
 
@@ -178,13 +207,16 @@ def send_message(bot_token: str, chat_id: str, item, config, admin_chat_id: str=
         }
     )
 
+    if "send_message_errors" not in report:
+        report["send_message_errors"] = Counter()
     if not json.loads(ret.text)["ok"]:
         logger.error(f"Send {message_type} to chat `{chat_id}` failed.")
         logger.debug(f"{message_args=}")
         logger.debug(f"url={ret.url}")
         logger.debug(f"response={ret.text}")
-        if admin_chat_id:
-            _send_message(bot_token, admin_chat_id, text=f"Send {message_type} to chat `{chat_id}` failed.\nurl={ret.url}\nresponse={ret.text}")
+        report["send_message_errors"][chat_id] += 1
+        # if admin_chat_id:
+        #     _send_message(bot_token, admin_chat_id, text=f"Send {message_type} to chat `{chat_id}` failed.\nurl={ret.url}\nresponse={ret.text}")
 
 
 def md5(string: str):
@@ -254,11 +286,15 @@ def send_all(config):
 
     report["feeds_to_fetch"] = list(feeds_to_fetch)
     report["num_items"] = []
+    report["get_feed_item_id_errors"] = Counter()
     for feed_name in feeds_to_fetch:
         feed = feeds[feed_name]
         item_ids = feed_item_ids.get(feed_name, "")
         for item in get_feed_items(feed):
             item_id = get_item_id(item, feeds[feed_name].get("id"))
+            if item_id is None:
+                report["get_feed_item_id_errors"][feed_name] += 1
+                continue
             hashed_item_id = md5(item_id)
             if hashed_item_id in item_ids:
                 report["num_items"].append({"num": len(feed_items[feed_name]), "name": feed_name, "break": 1, "item_id": item_id})
@@ -268,6 +304,7 @@ def send_all(config):
         else:
             report["num_items"].append({"num": len(feed_items[feed_name]), "name": feed_name, "break": 0})
 
+    report["get_group_item_id_errors"] = Counter()
     send_message_args = defaultdict(list)
     for chat_id, group_name in chats.items():
         logger.debug(f"get_item_sort_key {chat_id}, {group_name}")
@@ -282,7 +319,11 @@ def send_all(config):
             for feed_name, group_feed_config in group_feeds[group_name]
             for item in feed_items.get(feed_name, [])
         ], key=lambda item: get_item_sort_key(item, item["group_config"])):
-            if (hashed_item_id := md5(get_item_id(item, item["group_config"].get("id", item["feed_config"].get("id"))))) not in item_ids:
+            item_id = get_item_id(item, item["group_config"].get("id", item["feed_config"].get("id")))
+            if item_id is None:
+                report["get_group_item_id_errors"][group_name] += 1
+                continue
+            if (hashed_item_id := md5(item_id)) not in item_ids:
                 item_ids.add(hashed_item_id)
                 send_message_args[chat_id].append((bot_token, chat_id, item, item["group_config"]))
 
