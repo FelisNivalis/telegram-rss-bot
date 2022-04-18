@@ -17,6 +17,6 @@ WEBHOOK_TOKEN = os.environ.get("WEBHOOK_TOKEN", "")
 r = redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379"), decode_responses=True)
 
 try:
-    from funcs import FUNCS
+    from my.funcs import FUNCS
 except ModuleNotFoundError:
     FUNCS = {}

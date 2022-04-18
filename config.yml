@@ -68,8 +68,8 @@ rssgroups: # You can group your feeds here
         # 5. special variables:
         #   `feed_config`, a dict of the config of the feed
         #   `group_config`, a dict of the config of the group
-        # You can define functions and variables in `funcs.py`
-        # Remember to push your `funcs.py` to Heroku and that you might need a `my-requirements.txt`.
+        # You can define functions and variables in `my/funcs.py`
+        # Remember to push your `my/funcs.py` to Heroku and that you might need a `my/requirements.txt`.
         parse_mode: "" # Optional. Can be `MarkdownV2`, `HTMl`, `Markdown` or left blank. Default is none.
     sort_key: "pubDate" # Python code used to sort the messages. An empty field or a failed parse will fall to default sort key.
     # The reason pure Python code rather than f-string is used here is to enable using other types than strings.
