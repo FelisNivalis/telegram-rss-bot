@@ -372,7 +372,8 @@ def send_all(config):
 
     if admin_chat_id:
         for line in get_report_string():
-            _send_message(bot_token, admin_chat_id, text=line)
+            ret = _send_message(bot_token, admin_chat_id, text=line)
+            logger.debug(f"Report response: {ret.text}")
 
 
 def main():
