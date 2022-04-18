@@ -31,7 +31,7 @@ def get_report_string():
         f"  {item['name']}: {item['time']}"
         for item in sorted(
             report.get("next_fetch_time", []),
-            key=lambda item: item["time"], reverse=True
+            key=lambda item: item["time"], reverse=False
         )
     ])
     report_string.append(f"Feeds attached to at least one chat: {', '.join(report['feeds_to_send'])}")
@@ -226,7 +226,7 @@ def md5(string: str):
 
 
 def send_all(config):
-    report["start_at"] = datetime.datetime.now()
+    report["start_at"] = datetime.datetime.now().astimezone(datetime.timezone.utc)
 
     bot_token = config.get("bot_token", os.environ.get("BOT_TOKEN"))
     if bot_token is None:
