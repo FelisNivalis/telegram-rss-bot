@@ -9,7 +9,7 @@ class SourceTypeXML():
     @classmethod
     def parse_from_url(cls, text):
         try:
-            return etree.XML(text.encode("utf-8"))
+            return etree.fromstring(text.encode("utf-8"), etree.XMLParser(encoding="utf-8"))
         except etree.XMLSyntaxError:
             return
 
@@ -22,7 +22,7 @@ class SourceTypeHTML():
 
     @classmethod
     def parse_from_url(cls, text):
-        return etree.HTML(text)
+        return etree.fromstring(text.encode("utf-8"), etree.HTMLParser(encoding="utf-8"))
 
     @classmethod
     def get_xpath(cls, node, path):

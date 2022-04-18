@@ -146,8 +146,7 @@ last_time_send_message_by_chat = defaultdict(lambda: datetime.datetime(1, 1, 1))
 
 
 def sleep_until(until: datetime.datetime):
-    now = datetime.datetime.now()
-    if now < until:
+    while (now := datetime.datetime.now()) < until:
         time.sleep((until - now).total_seconds())
     return datetime.datetime.now()
 
