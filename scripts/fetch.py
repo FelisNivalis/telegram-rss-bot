@@ -251,6 +251,10 @@ def send_all(config):
                     else:
                         feed = merge_dict(feeds[from_feed], feed)
 
+        feed_fields = set(["name", "url", "id", "fields", "expand_from", "interval", "source_type", "method", "request_args", "item_xpath", "xpath",])
+        if len(ukn_fields := (set(feed.keys()) - feed_fields)):
+            logger.error(f"Feed {name} have unknown fields: {', '.join(ukn_fields)}.")
+
         feeds[name] = feed
 
     group_feeds = defaultdict(list, {name: [(name, {})] for name, feed in feeds.items() if "url" in feed})
@@ -265,6 +269,11 @@ def send_all(config):
         if not group.get("feeds"):
             logger.warning(f"No feeds in group `{group_name}`.")
             continue
+
+        group_fields = set(["name", "feeds", "message_config", "sort_key", "default_sort_key", "id", "fields",])
+        if len(ukn_fields := (set(feed.keys()) - group_fields)):
+            logger.error(f"Group {name} have unknown fields: {', '.join(ukn_fields)}.")
+
         for group_feed in group.get("feeds", []):
             if group_feed in group_feeds:
                 group_feeds[group_name] += [(_name, merge_dict(_config, group)) for _name, _config in group_feeds[group_feed]]
