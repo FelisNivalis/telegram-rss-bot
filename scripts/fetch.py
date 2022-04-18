@@ -212,11 +212,14 @@ def send_message(bot_token: str, chat_id: str, item, config, admin_chat_id: str=
 
     if "send_message_errors" not in report:
         report["send_message_errors"] = Counter()
-    if not json.loads(ret.text)["ok"]:
+    if not (ret_json := json.loads(ret.text))["ok"]:
         logger.error(f"Send {message_type} to chat `{chat_id}` failed.")
         logger.debug(f"{message_args=}")
         logger.debug(f"url={ret.url}")
         logger.debug(f"response={ret.text}")
+        if ret_json.get("error_code") == 429 and isinstance((retry_after := ret_json.get("parameters", {}).get("retry_after")), int):
+            time.sleep(retry_after)
+            return send_message(bot_token, chat_id, item, config, admin_chat_id)
         report["send_message_errors"][chat_id] += 1
         # if admin_chat_id:
         #     _send_message(bot_token, admin_chat_id, text=f"Send {message_type} to chat `{chat_id}` failed.\nurl={ret.url}\nresponse={ret.text}")
@@ -319,12 +322,6 @@ def send_all(config):
     report["get_group_item_id_errors"] = Counter()
     send_message_args = defaultdict(list)
     for chat_id, group_name in chats.items():
-        logger.debug(f"get_item_sort_key {chat_id}, {group_name}")
-        logger.debug(', '.join([
-            "{}, {}".format(item, get_item_sort_key({"feed_config": feeds[feed_name], "group_config": group_feed_config} | group_feed_config.get("fields", {}) | item, group_feed_config))
-            for feed_name, group_feed_config in group_feeds[group_name]
-            for item in feed_items.get(feed_name, [])
-        ]))
         item_ids = set()
         for item in sorted([
             {"feed_config": feeds[feed_name], "group_config": group_feed_config} | group_feed_config.get("fields", {}) | item
