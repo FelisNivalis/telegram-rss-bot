@@ -38,7 +38,7 @@ def get_report_string():
     report_string.append(f"Feeds attached to at least one chat: {', '.join(report['feeds_to_send'])}")
     report_string.append(f"Retrieve from: {', '.join(report['feeds_to_fetch'])}")
     if len(report.get('parse_from_url_errors', [])):
-        report_string.append(f"Detected errors when parsing: {', '.join(report['parse_from_url_errors'])}")
+        report_string.append(f"Detected errors when parsing: {', '.join([item['name'] for item in report['parse_from_url_errors']])}")
     if len(report.get("field_parsing_failure", [])):
         report_string.extend([f"In feed {name}, {c} items have {num} (!= 1) `{key}` fields." for (name, key, num), c in Counter(report["field_parsing_failure"]).items()])
     if len(report.get("get_item_sort_key_errors", [])):
