@@ -9,7 +9,7 @@ FIELDS_XPATH = {
     "link": "./link/text()",
     "title": "./title/text()",
     "description": "./description/text()",
-    "pub_date": "./pub_date/text()",
+    "pub_date": "./pubDate/text()",
 }
 MESSAGE_TYPE = "Message"
 MESSAGE_FORMAT = "{title}\n{description}\n{pub_date}\n{link}"
