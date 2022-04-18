@@ -10,6 +10,7 @@ feeds:
     interval: 120 # Optional. Default: 60 (minutes)
     item_xpath: ./channel/item # Optional. Define the xpath to an item
     source_type: XML # Optional. `HTML`, `XML` or `JSON`. Default: XML
+    # You can also define custom source types in `my/source_type.py`.
     xpath: # Optional. Define the xpath to the fields in an item. Can have custom fields.
       link: ./link/text()
       title: ./title/text()
