@@ -176,6 +176,8 @@ def get_item_id(item, id_field):
 
 last_time_send_message = datetime.datetime(1, 1, 1)
 last_time_send_message_by_chat = defaultdict(lambda: datetime.datetime(1, 1, 1))
+last_num_message = 1
+last_num_message_by_chat = defaultdict(lambda: 1)
 
 
 def sleep_until(until: datetime.datetime):
@@ -187,8 +189,13 @@ def sleep_until(until: datetime.datetime):
 def _send_message(bot_token: str, chat_id: str, message_type: str=MESSAGE_TYPE, **kwargs):
     # https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this
     global last_time_send_message, last_time_send_message_by_chat
-    last_time_send_message = sleep_until(last_time_send_message + datetime.timedelta(seconds=0.05))
-    last_time_send_message_by_chat[chat_id] = sleep_until(last_time_send_message_by_chat[chat_id] + datetime.timedelta(seconds=3))
+    last_time_send_message = sleep_until(last_time_send_message + datetime.timedelta(seconds=0.05 * last_num_message))
+    last_time_send_message_by_chat[chat_id] = sleep_until(last_time_send_message_by_chat[chat_id] + datetime.timedelta(seconds=3 * last_num_message_by_chat[chat_id]))
+    if message_type == "MediaGroup":
+        last_num_message = max(1, len(json.loads(kwargs.get("media", "[]"))))
+    else:
+        last_num_message = 1
+    last_num_message_by_chat[chat_id] = last_num_message
     return requests.get(f"https://api.telegram.org/bot{bot_token}/send{message_type}", params={"chat_id": chat_id} | kwargs)
 
 
