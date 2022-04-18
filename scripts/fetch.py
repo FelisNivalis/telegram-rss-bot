@@ -58,7 +58,17 @@ def get_report_string():
     report_string.extend([f"  {item['num']} messages of group {item['chat']} (feeds: {', '.join(item['feeds'])}) to {item['chat_id']} ({get_chat_info(item['chat_id'])})" for item in report["num_messages"]])
     if len(report.get("send_message_errors", [])):
         report_string.append(f"Num of errors when sending messages: {', '.join(['{} ({}): {}'.format(chat_id, get_chat_info(chat_id), value) for chat_id, value in report['send_message_errors'].items()])}.")
-    return '\n'.join(report_string)
+    lines = []
+    cur_line = ""
+    # Split report into several messages each shorter than 4096 characters
+    # https://core.telegram.org/bots/api#sendmessage
+    for line in report_string:
+        if len(cur_line + "\n" + line) <= 4000:
+            cur_line += "\n" + line
+        else:
+            lines.append(cur_line)
+            cur_line = line
+    return lines
 
 
 def filter_feeds_by_interval(intervals):
@@ -358,7 +368,8 @@ def send_all(config):
         })
 
     if admin_chat_id:
-        _send_message(bot_token, admin_chat_id, text=get_report_string())
+        for line in get_report_string():
+            _send_message(bot_token, admin_chat_id, text=line)
 
 
 def main():
