@@ -119,7 +119,8 @@ def get_feed_items(config):
     if source_type == "XML" and len(ttl_node := doc.xpath("/rss/channel/ttl/text()")) == 1 and ttl_node[0].isdigit() and (ttl := int(ttl_node[0])) > (interval := config.get("interval", INTERVAL)):
         logger.warning(f"The recommended interval for this feed is {ttl} minutes, while the interval you set is {interval} minutes.")
 
-    report["field_parsing_failure"] = []
+    if "field_parsing_failure" not in report:
+        report["field_parsing_failure"] = []
     item: etree._Element
     for item in get_xpath(doc, config.get("item_xpath", ITEM_XPATH), source_type):
         fields: Dict[str, etree._Element] = {}
@@ -143,7 +144,8 @@ def get_feed_items(config):
 def get_item_sort_key(item, config):
     default_sort_key = eval(str(config.get("default_sort_key", "0")), FUNCS)
     sort_key_field = config.get("sort_key")
-    report["get_item_sort_key_errors"] = []
+    if "get_item_sort_key_errors" not in report:
+        report["get_item_sort_key_errors"] = []
     try:
         if sort_key_field is not None:
             sort_key = eval(sort_key_field, FUNCS | item) or default_sort_key
