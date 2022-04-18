@@ -67,7 +67,7 @@ def filter_feeds_by_interval(intervals):
     report["next_fetch_time"] = [
         {
             "name": feed_name,
-            "time": datetime.datetime.fromtimestamp(float(last_fetch_time.get(feed_name, '0'))) + datetime.timedelta(minutes=interval),
+            "time": (datetime.datetime.fromtimestamp(float(last_fetch_time.get(feed_name, '0'))) + datetime.timedelta(minutes=interval)).astimezone(datetime.timezone.utc),
         }
         for feed_name, interval in intervals.items()
     ]
@@ -273,7 +273,7 @@ def send_all(config):
             continue
 
         group_fields = set(["name", "feeds", "message_config", "sort_key", "default_sort_key", "id", "fields",])
-        if len(ukn_fields := (set(feed.keys()) - group_fields)):
+        if len(ukn_fields := (set(group.keys()) - group_fields)):
             logger.error(f"Group {name} have unknown fields: {', '.join(ukn_fields)}.")
 
         for group_feed in group.get("feeds", []):

@@ -2,6 +2,10 @@
 
 from lxml import etree
 import json
+try:
+    from my.source_type import source_type_class_map
+except ModuleNotFoundError:
+    source_type_class_map = {}
 
 
 class SourceTypeXML():
@@ -49,4 +53,4 @@ source_type_class_map = {
     "XML": SourceTypeXML,
     "HTML": SourceTypeHTML,
     "JSON": SourceTypeJSON
-}
+} | source_type_class_map

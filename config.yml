@@ -36,7 +36,7 @@ feeds:
     # The reason the code here must return a list is to be consistent with XML and HTML, but it obviously adds burden to users, so it might be changed in the future.
     xpath:
       link: "[str(node.get('newsId', ''))]" # Python code to get a field. Must be a list of strings.
-      description: # There are 4 fields defined by default: link, title, description, pubDate. Leave it blank not to parse one.
+      description: # There are 4 fields defined by default: link, title, description, pub_date. Leave it blank not to parse one.
   - name: feed_template # You can also define a feed for other feeds to expand from.
     source_type: HTML
     item_xpath: .//div[@class='article']
@@ -59,7 +59,7 @@ rssgroups: # You can group your feeds here
     message_config:
       type: "Message" # For available types and args, see https://core.telegram.org/bots/api#sendmessage and other methods.
       args:
-        text: "{title}\n{description}\n{pubDate}\n{link}" # Optional. In Python f-string format.
+        text: "{title}\n{description}\n{pub_date}\n{link}" # Optional. In Python f-string format.
         # What can be used here include:
         # 1. fields defined in `xpath`
         # 2. fields defined in `fields` of the feed
@@ -71,7 +71,7 @@ rssgroups: # You can group your feeds here
         # You can define functions and variables in `my/funcs.py`
         # Remember to push your `my/funcs.py` to Heroku and that you might need a `my/requirements.txt`.
         parse_mode: "" # Optional. Can be `MarkdownV2`, `HTMl`, `Markdown` or left blank. Default is none.
-    sort_key: "pubDate" # Python code used to sort the messages. An empty field or a failed parse will fall to default sort key.
+    sort_key: "pub_date" # Python code used to sort the messages. An empty field or a failed parse will fall to default sort key.
     # The reason pure Python code rather than f-string is used here is to enable using other types than strings.
     default_sort_key: "0" # Default: "0". The default value when the bot failed to parse the sort key. You should make sure it is comparable with `sort_key`. Should be a constant value that never fails.
     id: "link" # Python code used to check duplication, an empty field or a failed parse will cause a discard. Must be hashable. Default to be the same as each feed's id.
