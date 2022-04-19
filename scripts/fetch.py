@@ -35,7 +35,6 @@ def get_report_string():
             key=lambda item: item["time"], reverse=False
         )
     ])
-    report_string.append(f"Feeds attached to at least one chat: {', '.join(report['feeds_to_send'])}")
     report_string.append(f"Retrieve from: {', '.join(report['feeds_to_fetch'])}")
     if len(report.get('parse_from_url_errors', [])):
         report_string.append(f"Detected errors when parsing: {', '.join([item['name'] for item in report['parse_from_url_errors']])}")
@@ -312,7 +311,6 @@ def send_all(config):
     feed_items = defaultdict(list)
     chats = config.get("chats", {})
     feeds_to_send = set([name for group in chats.values() for name, config in group_feeds[group]])
-    report["feeds_to_send"] = feeds_to_send
     feeds_to_fetch = filter_feeds_by_interval({
         feed_name: feed.get("interval", INTERVAL)
         for feed_name, feed in feeds.items()
