@@ -29,7 +29,7 @@ def get_report_string():
     report_string.append(f"Run at {report['start_at']}.")
     report_string.append("Next fetch time:")
     report_string.extend([
-        f"  {item['name']}: {item['time']}"
+        f"  {item['time']}: {item['name']}"
         for item in sorted(
             report.get("next_fetch_time", []),
             key=lambda item: item["time"], reverse=False
@@ -55,9 +55,10 @@ def get_report_string():
         for item in report["num_items"]
     ])
     report_string.append(f"Number of messages to send:")
-    report_string.extend([f"  {item['num']} messages of group {item['chat']} (feeds: {', '.join(item['feeds'])}) to {item['chat_id']} ({get_chat_info(item['chat_id'])})" for item in report["num_messages"]])
+    report_string.extend([f"  {item['num']} messages of group {item['chat']} to {item['chat_id']} ({get_chat_info(item['chat_id'])})" for item in report["num_messages"]])
     if len(report.get("send_message_errors", [])):
-        report_string.append(f"Num of errors when sending messages: {', '.join(['{} ({}): {}'.format(chat_id, get_chat_info(chat_id), value) for chat_id, value in report['send_message_errors'].items()])}.")
+        report_string.append(f"Num of errors when sending messages:")
+        report_string.extend([f'{value}: {chat_id} ({get_chat_info(chat_id)})' for chat_id, value in report['send_message_errors'].items()])
     lines = []
     cur_line = ""
     # Split report into several messages each shorter than 4096 characters
