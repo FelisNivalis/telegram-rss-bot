@@ -68,6 +68,8 @@ def get_report_string():
         else:
             lines.append(cur_line)
             cur_line = line
+    if cur_line:
+        lines.append(cur_line)
     return [f"Page {idx+1}/{len(lines)}\n{line}" for idx, line in enumerate(lines)]
 
 
