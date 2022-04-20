@@ -101,7 +101,10 @@ def update_last_fetch_time(keys):
 
 
 def parse_from_url(method, url, source_type, kwargs):
-    text = requests.request(method, url, **kwargs).text
+    try:
+        text = requests.request(method, url, **kwargs).text
+    except requests.exceptions.RequestException:
+        return
     scls = source_type_class_map.get(source_type)
     if scls is None:
         logger.error(f"Unsupported source type: {source_type}.")
