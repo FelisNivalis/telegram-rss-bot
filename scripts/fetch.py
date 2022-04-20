@@ -29,7 +29,7 @@ def get_report_string():
     report_string.append(f"Run at {report['start_at']}.")
     report_string.append("Next fetch time:")
     report_string.extend([
-        f"  {item['time']}: {item['name']}"
+        f"  {item['time'].strftime('%Y-%m-%d %H:%M:%S%z')}: {item['name']}"
         for item in sorted(
             report.get("next_fetch_time", []),
             key=lambda item: item["time"], reverse=False
