@@ -110,7 +110,7 @@ def update_last_fetch_time(keys):
 def parse_from_url(method, url, source_type, kwargs):
     if (scls := source_type_class_map.get(source_type)) is None:
         logger.error(f"Unsupported source type: {source_type}.")
-    elif (doc := scls.parse_from_url(scls.get_text(method, url, kwargs))) is None:
+    elif (text := scls.get_text(method, url, kwargs)) is None or (doc := scls.parse_from_url(text)) is None:
         logger.error(f"Failed to parse from {url=}. {source_type=}")
     else:
         return doc
