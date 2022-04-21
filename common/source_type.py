@@ -2,6 +2,7 @@
 
 from lxml import etree
 import json
+import requests
 
 
 class SourceTypeHTTPRequest():
