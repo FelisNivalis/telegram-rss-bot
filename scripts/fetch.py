@@ -95,7 +95,7 @@ def filter_feeds_by_interval(intervals):
     ]
 
     return set(
-        item["name"] for item in report["next_fetch_time"] if item["send"]
+        item["name"] for item in report["next_fetch_time"] if item["fetch"]
     )
 
 
