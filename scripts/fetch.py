@@ -16,11 +16,10 @@ from lxml import etree
 from typing import Dict
 from collections import defaultdict, Counter
 from loguru import logger
-from const import INTERVAL, ITEM_XPATH, FIELDS_XPATH, MESSAGE_FORMAT, MESSAGE_TYPE, FUNCS, r
+from const import INTERVAL, ITEM_XPATH, FIELDS_XPATH, MESSAGE_FORMAT, MESSAGE_TYPE, FUNCS, r, source_type_class_map
 from common.formatter import EscapeFstringFormatter
 from common.merge_dict import merge_dict
 from common.get_chat_info import get_chat_info
-from source_type import source_type_class_map
 
 
 report = {}
@@ -109,14 +108,9 @@ def update_last_fetch_time(keys):
 
 
 def parse_from_url(method, url, source_type, kwargs):
-    try:
-        text = requests.request(method, url, **kwargs).text
-    except requests.exceptions.RequestException:
-        return
-    scls = source_type_class_map.get(source_type)
-    if scls is None:
+    if (scls := source_type_class_map.get(source_type)) is None:
         logger.error(f"Unsupported source type: {source_type}.")
-    elif (doc := scls.parse_from_url(text)) is None:
+    elif (doc := scls.parse_from_url(scls.get_text(method, url, kwargs))) is None:
         logger.error(f"Failed to parse from {url=}. {source_type=}")
     else:
         return doc

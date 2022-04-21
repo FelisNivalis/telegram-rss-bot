@@ -20,3 +20,15 @@ try:
     from my.funcs import FUNCS
 except ModuleNotFoundError:
     FUNCS = {}
+
+try:
+    from my.source_type import source_type_class_map
+except ModuleNotFoundError:
+    source_type_class_map = {}
+
+from common.source_type import SourceTypeHTML, SourceTypeJSON, SourceTypeXML
+source_type_class_map = {
+    "XML": SourceTypeXML,
+    "HTML": SourceTypeHTML,
+    "JSON": SourceTypeJSON
+} | source_type_class_map

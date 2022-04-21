@@ -2,13 +2,19 @@
 
 from lxml import etree
 import json
-try:
-    from my.source_type import source_type_class_map
-except ModuleNotFoundError:
-    source_type_class_map = {}
 
 
-class SourceTypeXML():
+class SourceTypeHTTPRequest():
+
+    @classmethod
+    def get_text(cls, method, url, kwargs):
+        try:
+            text = requests.request(method, url, **kwargs).text
+        except requests.exceptions.RequestException:
+            return
+
+
+class SourceTypeXML(SourceTypeHTTPRequest):
 
     @classmethod
     def parse_from_url(cls, text):
@@ -22,7 +28,7 @@ class SourceTypeXML():
         return node.xpath(path)
 
 
-class SourceTypeHTML():
+class SourceTypeHTML(SourceTypeHTTPRequest):
 
     @classmethod
     def parse_from_url(cls, text):
@@ -33,7 +39,7 @@ class SourceTypeHTML():
         return node.xpath(path)
 
 
-class SourceTypeJSON():
+class SourceTypeJSON(SourceTypeHTTPRequest):
 
     @classmethod
     def parse_from_url(cls, text):
@@ -47,10 +53,3 @@ class SourceTypeJSON():
     @classmethod
     def get_xpath(cls, node, path):
         return eval(path, {"node": node})
-
-
-source_type_class_map = {
-    "XML": SourceTypeXML,
-    "HTML": SourceTypeHTML,
-    "JSON": SourceTypeJSON
-} | source_type_class_map
