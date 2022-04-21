@@ -10,7 +10,7 @@ class SourceTypeHTTPRequest():
     @classmethod
     def get_text(cls, method, url, kwargs):
         try:
-            text = requests.request(method, url, **kwargs).text
+            return requests.request(method, url, **kwargs).text
         except requests.exceptions.RequestException:
             return
 
