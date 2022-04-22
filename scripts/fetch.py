@@ -30,13 +30,12 @@ def get_report_string():
     report_string.append(f"Run at {report['start_at']}.")
     report_string.append("Next fetch time:")
     report_string.extend([
-        f"  {item['time'].strftime('%Y-%m-%d %H:%M:%S%z')} fetch?{'✓' if item['fetch'] else '🞨'}: {item['name']}"
+        f"  {item['time'].strftime('%Y-%m-%d %H:%M:%S%z')} {'✓' if item['fetch'] else '×'}: {item['name']}"
         for item in sorted(
             report.get("next_fetch_time", []),
             key=lambda item: item["time"], reverse=False
         )
     ])
-    report_string.append(f"Retrieve from: {', '.join(report['feeds_to_fetch'])}")
     if len(report.get('parse_from_url_errors', [])):
         report_string.append(f"Detected errors when parsing: {', '.join([item['name'] for item in report['parse_from_url_errors']])}")
     if len(report.get("field_parsing_failure", [])):
@@ -88,7 +87,7 @@ def filter_feeds_by_interval(intervals):
             # Fetch the feed with a very small prob even if it's not time. Two reasons for this:
             # 1. If you, for example, have 10 feeds all with intervals of 2 hours, this will slowly slowly spread the tasks evenly in every hour, rather than doing everything in one hour and idling in the other.
             # 2. The `last_fetch_time` will be several minutes later than the script starts, if you have a feed with an interval of 2 hours, it will be very likely retrieved only every 3 hours, if we do nothing here.
-            "fetch": 1 / (1 + math.exp(- ((current_ts - float(last_fetch_time.get(feed_name) or 0) - interval * 60) / (60 * TASK_INTERVAL) * 10))) > random.random() / 2,
+            "fetch": 1 / (1 + math.exp(- ((current_ts - float(last_fetch_time.get(feed_name) or 0) - interval * 60) / (60 * TASK_INTERVAL) * 15))) > random.random() / 2,
             "time": (datetime.datetime.fromtimestamp(float(last_fetch_time.get(feed_name, '0'))) + datetime.timedelta(minutes=interval)).astimezone(datetime.timezone.utc),
         }
         for feed_name, interval in intervals.items()
@@ -322,7 +321,6 @@ def send_all(config):
         if "url" in feed
     }) & feeds_to_send
 
-    report["feeds_to_fetch"] = list(feeds_to_fetch)
     report["num_items"] = []
     report["get_feed_item_id_errors"] = Counter()
     for feed_name in feeds_to_fetch:
