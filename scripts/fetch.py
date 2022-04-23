@@ -48,9 +48,7 @@ def get_report_string():
         report_string.append(f"Num of errors when evaluating group item id: {report['get_group_item_id_errors']}.")
     report_string.append(f"Fetching results:")
     report_string.extend([
-        f"  {item['num']} items from {item['name']}. Overlapping starts from No.{item['item_idx']}."
-        if item["break"] == 1 else
-        f"  {item['num']} items from {item['name']}. No overlapping from previous fetch."
+        f"  {item['num']} new items from {item['name']}. {'No overlapping from previous fetch.' if item['break'] != 1 else ''}"
         for item in report["num_items"]
     ])
     report_string.append(f"Number of messages to send:")
@@ -174,7 +172,7 @@ def get_item_sort_key(item, config):
             sort_key_field,
             default_sort_key,
         ))
-        logger.error(f"Failed to eval sort key for a feed in group {config['name']}. Error `{e}`. Use default key `{default_sort_key}` instead. {item=}, {sort_key_field=}")
+        logger.error(f"Failed to eval sort key for a feed in group {config['name']}. Error `{e}`. Use default key `{default_sort_key!r}` instead. {item=}, {sort_key_field=}")
         sort_key = default_sort_key
     return sort_key
 
@@ -334,7 +332,7 @@ def send_all(config):
                 continue
             hashed_item_id = md5(item_id)
             if hashed_item_id in item_ids:
-                report["num_items"].append({"num": len(feed_items[feed_name]), "name": feed_name, "break": 1, "item_id": item_id, "item_idx": idx})
+                report["num_items"].append({"num": len(feed_items[feed_name]), "name": feed_name, "break": 1, "item_id": item_id})
                 break
             new_feed_item_ids[feed_name].append(hashed_item_id)
             feed_items[feed_name].append(feed.get("fields", {}) | item)
