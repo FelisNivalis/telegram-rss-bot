@@ -30,7 +30,7 @@ def get_report_string():
     report_string.append(f"Run at {report['start_at']}.")
     report_string.append("Next fetch time:")
     report_string.extend([
-        f"  {item['time'].strftime('%Y-%m-%d %H:%M:%S%z')} {'✓' if item['fetch'] else '×'}: {item['name']}"
+        f"  {item['time'].strftime('%Y-%m-%d %H:%M:%S%z')} {'✓' if item['fetch'] else ' '}: {item['name']}"
         for item in sorted(
             report.get("next_fetch_time", []),
             key=lambda item: item["time"], reverse=False
@@ -48,7 +48,7 @@ def get_report_string():
         report_string.append(f"Num of errors when evaluating group item id: {report['get_group_item_id_errors']}.")
     report_string.append(f"Fetching results:")
     report_string.extend([
-        f"  {item['num']} items from {item['name']}. Overlapping starts from {item['item_id']}."
+        f"  {item['num']} items from {item['name']}. Overlapping starts from No.{item['item_idx']}."
         if item["break"] == 1 else
         f"  {item['num']} items from {item['name']}. No overlapping from previous fetch."
         for item in report["num_items"]
@@ -327,14 +327,14 @@ def send_all(config):
         feed = feeds[feed_name]
         item_ids = feed_item_ids.get(feed_name, "")
         logger.debug(f"Get feed items from feed {feed_name}")
-        for item in get_feed_items(feed):
+        for idx, item in enumerate(get_feed_items(feed)):
             item_id = get_item_id(item, feeds[feed_name].get("id"))
             if item_id is None:
                 report["get_feed_item_id_errors"][feed_name] += 1
                 continue
             hashed_item_id = md5(item_id)
             if hashed_item_id in item_ids:
-                report["num_items"].append({"num": len(feed_items[feed_name]), "name": feed_name, "break": 1, "item_id": item_id})
+                report["num_items"].append({"num": len(feed_items[feed_name]), "name": feed_name, "break": 1, "item_id": item_id, "item_idx": idx})
                 break
             new_feed_item_ids[feed_name].append(hashed_item_id)
             feed_items[feed_name].append(feed.get("fields", {}) | item)
