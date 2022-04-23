@@ -54,10 +54,10 @@ def get_report_string():
         for item in report["num_items"]
     ])
     report_string.append(f"Number of messages to send:")
-    report_string.extend([f"  {item['num']} messages of group {item['chat']} to {item['chat_id']} ({get_chat_info(item['chat_id'])})" for item in report["num_messages"]])
+    report_string.extend([f"  {item['num']} messages of group {item['chat']} to ({get_chat_info(item['chat_id'])})" for item in report["num_messages"]])
     if len(report.get("send_message_errors", [])):
         report_string.append(f"Num of errors when sending messages:")
-        report_string.extend([f'{value}: {chat_id} ({get_chat_info(chat_id)})' for chat_id, value in report['send_message_errors'].items()])
+        report_string.extend([f'{value}: ({get_chat_info(chat_id)})' for chat_id, value in report['send_message_errors'].items()])
     lines = []
     cur_line = ""
     # Split report into several messages each shorter than 4096 characters
