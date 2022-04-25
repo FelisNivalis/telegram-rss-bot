@@ -1,25 +1,17 @@
 # coding: utf-8
 
 import os
-import json
-import requests
-import dateutil.parser
 import datetime
 import hashlib
 import math
 import random
 import yaml
-import math
-import time
-import urllib
-from lxml import etree
-from typing import Dict
 from collections import defaultdict, Counter
 from loguru import logger
-from const import INTERVAL, ITEM_XPATH, FIELDS_XPATH, MESSAGE_FORMAT, MESSAGE_TYPE, FUNCS, r, source_type_class_map
-from common.formatter import EscapeFstringFormatter
+from const import INTERVAL, ITEM_XPATH, FIELDS_XPATH, FUNCS, r, source_type_class_map, CONFIG, admin_chat_id, bot_token
 from common.merge_dict import merge_dict
 from common.get_chat_info import get_chat_info
+from common.send_message import send_message, _send_message
 
 
 report = {}
@@ -136,9 +128,8 @@ def get_feed_items(config):
 
     if "field_parsing_failure" not in report:
         report["field_parsing_failure"] = []
-    item: etree._Element
     for item in get_xpath(doc, config.get("item_xpath", ITEM_XPATH), source_type):
-        fields: Dict[str, etree._Element] = {}
+        fields = {}
         for key, xpath in (FIELDS_XPATH | config.get("xpath", {})).items():
             if xpath is None:
                 # Can be deliberately set to `None` to skip default fields.
@@ -188,77 +179,16 @@ def get_item_id(item, id_field):
     return item_id
 
 
-last_time_send_message = datetime.datetime(1, 1, 1)
-last_time_send_message_by_chat = defaultdict(lambda: datetime.datetime(1, 1, 1))
-last_num_message = 1
-last_num_message_by_chat = defaultdict(lambda: 1)
-
-
-def sleep_until(until: datetime.datetime):
-    while (now := datetime.datetime.now()) < until:
-        time.sleep((until - now).total_seconds())
-    return datetime.datetime.now()
-
-
-def _send_message(bot_token: str, chat_id: str, message_type: str=MESSAGE_TYPE, **kwargs):
-    # https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this
-    global last_time_send_message, last_time_send_message_by_chat, last_num_message, last_num_message_by_chat
-    last_time_send_message = sleep_until(last_time_send_message + datetime.timedelta(seconds=0.05 * last_num_message))
-    last_time_send_message_by_chat[chat_id] = sleep_until(last_time_send_message_by_chat[chat_id] + datetime.timedelta(seconds=3 * last_num_message_by_chat[chat_id]))
-    if message_type == "MediaGroup":
-        last_num_message = max(1, len(json.loads(kwargs.get("media", "[]"))))
-    else:
-        last_num_message = 1
-    last_num_message_by_chat[chat_id] = last_num_message
-    return requests.get(f"https://api.telegram.org/bot{bot_token}/send{message_type}", params={"chat_id": chat_id} | kwargs)
-
-
-def send_message(bot_token: str, chat_id: str, item, config, admin_chat_id: str=""):
-    message_config = config.get("message_config", {})
-    message_type = message_config.get("type", MESSAGE_TYPE)
-    message_args = ({"text": MESSAGE_FORMAT} if message_type == MESSAGE_TYPE else {}) | message_config.get("args", {})
-    parse_mode = message_args.get("parse_mode", "")
-
-    ret = _send_message(
-        bot_token, chat_id, message_type,
-        **{
-            k: EscapeFstringFormatter(
-                parse_mode
-                if k in ["text", "caption"]
-                else "", FUNCS
-            ).format(v, **item)
-            for k, v in message_args.items()
-        }
-    )
-
-    if "send_message_errors" not in report:
-        report["send_message_errors"] = Counter()
-    if not (ret_json := json.loads(ret.text))["ok"]:
-        logger.error(f"Send {message_type} to chat `{chat_id}` failed.")
-        logger.debug(f"{message_args=}")
-        logger.debug(f"url={ret.url}")
-        logger.debug(f"response={ret.text}")
-        if ret_json.get("error_code") == 429 and isinstance((retry_after := ret_json.get("parameters", {}).get("retry_after")), int):
-            time.sleep(retry_after)
-            return send_message(bot_token, chat_id, item, config, admin_chat_id)
-        report["send_message_errors"][chat_id] += 1
-        # if admin_chat_id:
-        #     _send_message(bot_token, admin_chat_id, text=f"Send {message_type} to chat `{chat_id}` failed.\nurl={ret.url}\nresponse={ret.text}")
-
-
 def md5(string: str):
     return hashlib.md5(string.encode("utf-8")).hexdigest()[:8]
 
 
-def send_all(config):
+def main(config):
     report["start_at"] = datetime.datetime.now().astimezone(datetime.timezone.utc)
 
-    bot_token = config.get("bot_token", os.environ.get("BOT_TOKEN"))
     if bot_token is None:
         logger.error("No bot token is given.")
         return
-
-    admin_chat_id = config.get("admin_chat_id", "")
 
     feeds = {}
     for feed in config.get("feeds", []):
@@ -362,7 +292,7 @@ def send_all(config):
         logger.debug(f"Send messages ... ({idx} / {max_idx})")
         for chat_id, _messages in send_message_args.items():
             if idx < len(_messages):
-                send_message(*_messages[idx], admin_chat_id=admin_chat_id)
+                send_message(*_messages[idx], report=report)
 
     update_last_fetch_time(feeds_to_fetch)
     if new_feed_item_ids:
@@ -378,9 +308,5 @@ def send_all(config):
             logger.debug(f"Report response: {ret.text}")
 
 
-def main():
-    send_all(yaml.load(r.get("config"), yaml.Loader))
-
-
 if __name__ == "__main__":
-    main()
+    main(CONFIG)

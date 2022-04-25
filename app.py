@@ -5,8 +5,10 @@ import uuid
 import yaml
 import logging
 from flask import Flask, request
-from const import r, WEBHOOK_TOKEN
+from const import r, WEBHOOK_TOKEN, admin_chat_id, bot_token
 from functools import wraps
+from common.send_message import _send_message
+from common.get_chat_info import get_chat_info
 
 app = Flask(__name__)
 gunicorn_logger = logging.getLogger('gunicorn.error')
@@ -56,15 +58,19 @@ def update_hook():
                 can_send_message = new_chat_member["can_send_messages"]
         chat_id = str(chat["id"])
         if can_send_message:
-            r.hset("chats", chat_id, json.dumps({
+            chat_info = {
                 k: v
                 for k, v in chat.items()
                 if k in [
                     "id", "type", "title", "username", "first_name", "last_name"
                 ]
-            }))
+            }
+            r.hset("chats", chat_id, json.dumps(chat_info))
+            _send_message(bot_token, admin_chat_id, text=f"New chat: {chat_info}")
         else:
+            chat_info = get_chat_info(chat_id)
             r.hdel("chats", chat_id)
+            _send_message(bot_token, admin_chat_id, text=f"The bot was removed or restricted from chat: {chat_info}")
     return "ok"
 
 
